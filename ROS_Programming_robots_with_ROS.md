@@ -2581,11 +2581,159 @@ MORSE와 VREP처럼 ROS와 함께 사용할 수 있는 수많은 다른 시뮬�
 
 이 장에서는 ROS와 가장 관련 있는 로봇 유형에 초점을 맞추어 전형적인 로봇의 서브시스템인 이동 조작 플랫폼(mobile manipulation platform)을 살펴보았다. 이제는 로봇이 어떤 모습인지에 관해 잘 알게 되었고, 센서로부터 데이터를 읽고, 데이터를 해석하는 방법과 무엇을 할지를 이해하고, 로봇을 움직이기 위해 구동기에 명령을 보내면서 ROS가 로봇을 어떻게 제어하는지에 관해 이해하기 시작하였을 것이다. 다음 장에서는 이미 읽은 내용들을 함께 묶어 로봇을 돌아다니게 하는 코드 작성 방법을 보여 줄 것이다. 이번 장에서 논의한 것처럼 이 책에서 작성할 모든 코드는 실제 로봇이나 시뮬레이션된 로봇을 목표로 할 수 있다.
 
+# Chap07. 원더-봇
 
+이 책의 첫 부분에서는 토픽, 서비스, 액션과 같은 모듈 간 통신에 사용되는 추상적인 ROS 개념을 소개했었다. 그런 다음 앞 장에서는 현대의 로봇에서 공통적으로 발견되는 감지와 구동 서브시스템을 소개하였다. 이 장에서는 주변을 돌아다닐 수 있는 로봇을 만들기 위하여 이러한 개념을 모두 합칠 것이다. 이는 땅이 갈라지는 것처럼 놀랍지 않을 수도 있지만, 그런 로봇은 사실상 의미 있는 작업을 할 수 있다. 주변 환경을 돌아다니면서 수행할 수 있는 작업 전부가 해당된다. 예를 들어, 청소 도구를 가지고 있는 로봇이 잘 설계되고 세밀하게 조정된 알고리즘을 사용하여 다소 무작위적으로 주변을 주행하면서 진공 청소 또는 바닥 청소 작업을 하게 할 수 있다. 로봇은 결국 언젠가는 주변의 모든 곳을 돌아다니면서 청소 작업을 완료할 것이다.
 
+이 장에선느 ROS 패키지를 생성하고 시뮬레이션에서 테스트하는 것을 포함하여 최소한의 ROS 기반 로봇 제어 소프트웨어를 작성하는 절차를 단계적으로 다룰 것이다.
 
+## 패키지 생성
 
+먼저, ~/wanderbot_ws에 넣어 둘 작업 공간 디렉터리 트리를 만들어 보자.
 
+```
+oem@user:~$ cd wanderbot_ws/cd 
+oem@user:~$ ~/wanderbot_ws/src
+oem@user:~$ catkin_init_workspace
+Creating symlink "/home/oem/wanderbot_ws/src/CMakeLists.txt" pointing to "/opt/ros/noetic/share/catkin/cmake/toplevel.cmake"
+```
+
+따라하면 문제없을 것이다. 다음으로, 새 작업 공간에 패키지를 생성하기 위한 명령어 하나를 실행한다. rospy(ROS용 파이썬 클라이언트)와 몇몇 표준 ROS 패키지를 사용하는 wanderbot 패키지를 생성하기 위해 catkin_create_pkg 명령을 사용할 것이다.
+
+```
+oem@user:~/wanderbot_ws/src$ cd ~/wanderbot_ws/src
+oem@user:~/wanderbot_ws/src$ catkin_create_pkg wanderbot rospy geometry_msgs sensor_msgs
+Created file wanderbot/package.xml
+Created file wanderbot/CMakeLists.txt
+Created folder wanderbot/src
+Successfully created files in /home/oem/wanderbot_ws/src/wanderbot. Please adjust the values in package.xml.
+```
+
+첫 번째 인자 wanderbot은 생성할 새로운 패키지의 이름이다. 다음 인자들은 새 패키지의 의존하는 패키지 이름이다. 소스 파일이 수정되어 효과적으로 빌드를 최신 상태로 유지하고 패키지가 배포될 때 필요한 설치 의존성을 생성하기 위해서 ROS 빌드 시스템이 패키지 의존성을 알 필요가 있으므로 이들 패키지를 포함해야 한다.
+
+catkin_create_pkg 명령을 실행한 수 작업 공간 안에 다음 파일을 포함하는 wanderbot 패키지 디렉터리가 있을 것이다.
+
+* ~/wanderbot_wa/src/wanderbot/CMakeLists.txt
+
+  : 이 패키지에 대한 빌드 스크립트 시작점
+
+* package.xml
+
+  : 이름, 설명, 저자, 라이선스와 빌드 및 실행을 위해 의존해야 하는 다른 패키지에 관한 상세한 내용을 포함하는 기계 판독 가능한 패키지 설명
+
+wanderbot 패키지를 생성하였으므로 그 안에 들어갈 최소한의 ROS 노드를 생성할 수 있다. 이전 장에서는 문자열과 정수의 같은 일반적인 노드 간 메시지를 보냈지만, 이제는 로봇 전용 메시지를 보낼 수 있다. 다음 코드는 3초마다 주행과 정지를 교ㅗ대로 하면서 초당 10회의 움직임 명령 스트림을 보낸다. 주행하는 동안 프로그램은 초당 0.5m 전진 속도 명령을 보낼 것이다. 정지하는 동안에는 초당 0m의 명령을 보낼 것이다. 이 프로그램은 예제 7-1에 있다.
+
+*예제 7-1) red_and_green.py*
+
+```python
+#!/usr/bin/python3
+import rospy
+from geometry_msgs.msg import Twist
+
+cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
+rospy.init_node('red_light_green_light')
+
+red_light_twist = Twist()
+green_light_twist = Twist()
+green_light_twist.linear.x = 0.5
+
+driving_forward = False
+light_change_time = rospy.Time.now()
+rate = rospy.Rate(10)
+
+while not rospy.is_shutdown():
+    if driving_forward:
+        cmd_vel_pub.publish(green_light_twist)
+    else:
+        cmd_vel_pub.publish(red_light_twist)
+    if light_change_time > rospy.Time.now():
+        driving_forward = not driving_forward
+        light_change_time = rospy.Time.now() + rospy.Duration(3)
+    rate.sleep()
+```
+
+1. queue_size=1 인자는 rospy에게 오직 한 개의 발신 메시지를 버퍼링하게 한다. 메시지를 보내는 노드가 수신 노드가 받을 수 있는 속도보다 더 빨리 보내고 있다면 rospy는 queue_size 개수 이상의 메시지는 단순히 폐기할 것이다.
+
+   ```python
+   cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
+   ```
+
+2. 메시지 생성자는 모든 필드를 0으로 설정한다. 따라서 red_light_twist 메시지는 로봇에게 정지하라고 명령한다. 이는 메시지 속도 성분들(velocity subcomponents)이 모두 0이기 때문이다.
+
+   ```python
+   red_light_twist = Twist()
+   green_light_twist = Twist()
+   ```
+
+3. Twist 메시지의 선형 속도 x는 관례적으로 로봇이 향하고 있는 방향으로 정렬되어 있으므로, 이 줄은 "초당 0.5m 속도로 직진하라"는 것을 뜻한다.
+
+   ```python
+   green_light_twist.linear.x = 0.5
+   ```
+
+4. 속도 명령 메시지 스트림을 지속적으로 발행할 필요가 있다. 이는 대부분의 이동체 장치 구동기가 최소한 초당 여러 개의 메시지를 받지 못하면 일시 중지되고 이동이 멈출 것이기 때문이다.
+
+   ```python
+   cmd_vel_pub.publish(green_light_twist)
+   ```
+
+5. 이 조건문은 정기적으로 시스템 시간을 확인하고 적색 등과 녹색 등을 번갈아 작동시킨다.
+
+   ```python
+   if light_change_time > rospy.Time.now():
+   ```
+
+6. rospy.sleep()을 호출하지 않으면 코드는 계속 동작하여 너무 많은 메시지를 전송하고, 전체 CPU 코어를 차지할 것이다.
+
+   ```python
+   rate.sleep()
+   ```
+
+예제 7-1의 많은 부분은 그저 시스템과 자료 구조를 설정하는 것이다. 이 프로그램의 가장 중요한 기능은 3초마다 주행에서 정지로 행위를 변경하는 것이다. 이는 아래의 세 줄로 구현된다. 여기서 행위의 마지막 변경부터 지속된 기간을 측정하기 위하여 rospy.Time을 사용한다.
+
+```python
+if light_change_time > rospy.Time.now():
+        driving_forward = not driving_forward
+        light_change_time = rospy.Time.now() + rospy.Duration(3)
+```
+
+모든 파이썬 스크립트처럼 명령행에서 직접 스크립트를 실행할 수 있도록 실행 파일로 만들어 두는 것이 편리하다.
+
+```
+chmod +x red_and_green.py 
+```
+
+이제 시뮬레이션된 로봇을 제어하기 위하여 이 프로그램을 사용할 수 있다. 그러나 먼저 터틀봇 시뮬레이션 스택을 설치한다.
+
+```
+cd ~/wanderbot_ws/src
+git clone https://github.com/hanruihua/Turtlebot_on_noetic.git
+cd Turtlebot_on_noetic
+sh turtlebot_noetic.sh
+cd ~/wanderbot_ws
+catkin_make
+source devel/setup.bash
+```
+
+cf) : [Invoking "make -j8 -l8" failed 오류 해결](https://blue-dot.tistory.com/229)
+
+이제 시뮬레이터에서 터틀봇 객체를 만들 준비가 되었다. 새 터미널 창에서 아래 명령을 입력하여 간단한 world를 시작할 것이다.
+
+```
+roslaunch turtlebot_gazebo turtlebot_world.launch
+```
+
+<img src="/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240425080416929.png" alt="image-20240425080416929" style="zoom:67%;" />
+
+이제 다른 터미널 창에서 제어 노드를 시작한다.
+
+```
+oem@user:~/wanderbot_ws/src/wanderbot/src$ ./red_and_green.py cmd_vel:=cmd_vel_mux/input/teleop
+```
+
+터틀봇 소프트웨어 스택이 기대하는 토픽으로 Twist 메시지를 발행할 수 있도록 cmd_vel 토픽 이름을 변경할 필요가 있다. red_and_green.py 소스 코드에서 이 토픽으로 발행할 cmd_vel_pub을 선언할 수도 있었지만, 가능한 한 일반적인 ROS 노드를 작성하는 것이 목표이므로 여기서는 다른 로봇 소프트웨어 스택에서 어떤 토픽 이름을 요구하더라도 cmd_vel 토픽 이름을 쉽게 변경할 수 있다.
+
+red_and_green.py가 실행될 때 터틀봇이 3초마다 주행과 정지를 교대로 반복함을 볼 수 있을 것이다. 또 새로운 것을 터득하게 되었다. 지켜보는 것이 지루해지면 터틀봇 시뮬레이션과 함께 새로 만든 노드가 실행되고 있는 터미널 창에서 단지 Ctrl+C를 누르면 된다.
 
 
 
