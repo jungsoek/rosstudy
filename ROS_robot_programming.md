@@ -168,7 +168,7 @@ ROS는 사용자들의 재사용성을 극대화하기 위하여 그 목적에 �
 
 *그림 4-1) 노드 간의 메시지 통신*
 
-![image-20240426000128060](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426000128060.png)
+![image-20240426000128060](./assets/image-20240426000128060.png)
 
 *표 4-1 토픽, 서비스, 액션간의 차이*
 
@@ -182,7 +182,7 @@ ROS는 사용자들의 재사용성을 극대화하기 위하여 그 목적에 �
 
 토픽 메시지 통신은 그림 4-2와 같이 정보를 송신하는 퍼블리셔와 정보를 수신하는 서브스크라이버가 토픽 메시지 형태로 정보를 송수신하는 것이다. 토픽을 수신받기를 원하는 서브스크라이버 노드는 마스터에 등록된 토픽 이름에 해당하는 퍼블리셔 노드의 정보를 받는다. 이 정보를 기반으로 서브스크라이버 노드는 퍼블리셔 노드와 직접 연결하여 메시지를 송수신한다. 예를 들어 모바일로 로봇의 양바퀴 엔코더 값을 계산하여 로봇의 현재 위치인 [오도메트리(odometry)](http://wiki.ros.org/nevigation/Tutorial/RobotSetup/Odom) 정보를 생성, 토픽 메시지(x, y, theta)로 전달하는 것으로 비동기식으로 단방향으로 연속적인 메시지 송수신이 가능하다. 토픽은 단방향 통신이면서 한 번의 접속으로 지속해서 메시지를 송수신하기 때문에 지속해서 메시지를 발송해야 하는 센서 데이터에 적합하다. 더불어, 하나의 퍼블리셔에 여럿의 서브스크라이버의 통신도 가능하고 반대로 하나의 토픽에 대해 여럿의 퍼블리셔에 하나의 서브스크라이버의 통신도 가능하다. 물론 양쪽 모두 여럿의 퍼블리셔에 여럿의 서브스크라이버의 경우에도 통신이 가능하다.
 
-![image-20240426001215639](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426001215639.png)
+![image-20240426001215639](./assets/image-20240426001215639.png)
 
 ### 4.2.2. 서비스(service)
 
@@ -200,7 +200,7 @@ ROS는 사용자들의 재사용성을 극대화하기 위하여 그 목적에 �
 
 여기서 퍼블리셔, 서브스크라이버, 서비스 서버, 서비스 클라이언트, 액션 서버, 액션 클라이언트는 모두 각각 다른 노드 안에 존재하게 되는데 이러한 노드들이 메시지 통신을 하는 데에는 접속이 필요하다. 이때 노드 간의 접속을 돕는 것이 마스터이다. 마스터는 노드의 이름, 토픽과 서비스, 액션의 이름, URI 주소와 포트, 파라미터 등의 네임 서버와 같은 역할을 한다. 즉 노드는 생성과 동시에 마스터에 자신의 정보를 등록하고, 다른 노드가 마스터를 통해 접속하려는 노드의 정보를 마스터로부터 취득한다. 그런 다음, 노드와 노드가 직접 접속하여 메시지 통신을 수행한다. 이를 그림으로 나타내면 아래와 같다.
 
-![image-20240426021917093](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426021917093.png)
+![image-20240426021917093](./assets/image-20240426021917093.png)
 
 
 
@@ -222,7 +222,7 @@ ROS는 사용자들의 재사용성을 극대화하기 위하여 그 목적에 �
 roscore
 ```
 
-<img src="/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426014741349.png" alt="image-20240426014741349" style="zoom:67%;" />
+<img src="./assets/image-20240426014741349.png" alt="image-20240426014741349" style="zoom:67%;" />
 
 #### 서브스크라이버 노드 구동
 
@@ -233,43 +233,43 @@ rosrun PACKAGE_NAME NODE_NAME
 roslaunch PACKAGE_NAME LAUNCH_NAME
 ```
 
-<img src="/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426015723487.png" alt="image-20240426015723487" style="zoom:67%;" />
+<img src="./assets/image-20240426015723487.png" alt="image-20240426015723487" style="zoom:67%;" />
 
 #### 퍼블리셔 노드 구동
 
 퍼블리셔 노드는 서브스크라이버 노드와 마찬가지로 rosrun 또는 roslaunch 명령어로 구동된다. 퍼블리셔 노드는 구동과 함께 마스터에 자신의 퍼블리셔 노드 이름, 토픽 이름, 메시지 형태, URI 주소와 포트를 등록한다. 마스터와 노드는 XMLRPC를 이용하여 통신한다.
 
-![image-20240426020403927](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426020403927.png)
+![image-20240426020403927](./assets/image-20240426020403927.png)
 
 #### 퍼블리셔 정보 알림
 
 마스터는 서브스크라이버 노드에 서브스크라이버가 접속하기 원하는 퍼블리셔의 이름, 토픽 이름, 메시지 형태, URI 주소와 포트 등의 정보를 전송한다. 마스터와 노드는 XMLRPC를 이용하여 통신한다.
 
-![image-20240426020434720](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426020434720.png)
+![image-20240426020434720](./assets/image-20240426020434720.png)
 
 #### 서브스크라이버 노드의 접속 요청
 
 서브스크라이버 노드는 마스터로부터 받은 퍼블리셔 정보를 기반으로 퍼블리셔 노드에 직접 접속을 요청한다. 이때 전송하는 정보로는 자신의 서브스크라이버 노드 이름, 토픽 이름, 메시지 방식이 있다. 퍼블리셔 노드와 서브스크라이버 노드는 XMLRPC를 이용해 통신한다.
 
-![image-20240426021354356](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426021354356.png)
+![image-20240426021354356](./assets/image-20240426021354356.png)
 
 #### 퍼블리셔 노드의 접속 응답
 
 퍼블리셔 노드는 서브스크라이버 노드에 접속 응답에 해당하는 자신의 TCP 서버의 정보인 URI 주소와 포트를 전송한다. 퍼블리셔 노드와 서브스크라이버 노드는 XMLRPC를 이용하여 통신한다.
 
-![image-20240426021434837](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426021434837.png)
+![image-20240426021434837](./assets/image-20240426021434837.png)
 
 #### TCPROS 접속
 
 서브스크라이버 노드는 TCPROS를 이용하여 퍼블리셔 노드에 대한 클라이언트를 만들고, 퍼블리셔 노드와 직접 연결한다. 노드 간 통신은 TCPROS라는 TCP/IP 방식을 이용한다.
 
-![image-20240426021853413](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426021853413.png)
+![image-20240426021853413](./assets/image-20240426021853413.png)
 
 #### 메시지 전송
 
 퍼블리셔 노드는 서브스크라이버 노드에 정해진 메시지를 전송한다. 노드 간 통신은 TCPROS라는 TCP/IP 방식을 이용한다.
 
-![image-20240426022258552](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426022258552.png)
+![image-20240426022258552](./assets/image-20240426022258552.png)
 
 #### 서비스 요청 및 응답
 
@@ -280,13 +280,13 @@ roslaunch PACKAGE_NAME LAUNCH_NAME
 
 서비스 서버와 클라이언트의 접속은 앞서 설명한 퍼블리셔와 서브스크라이브에서의 TCPROS 접속과 같지만, 서비스는 토픽과 달리 1회에 한해 접속하여, 요청과 응답을 수행하고 서로의 접속을 끊는다. 다시 필요하면 접속부터 새롭게 진행해야 한다.
 
-![image-20240426022700798](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426022700798.png)
+![image-20240426022700798](./assets/image-20240426022700798.png)
 
 #### 액션 목표, 결과, 피드백
 
 액션은 수행하는 방법론에서 서비스의 요청과 응답의 중간 결괏값 전달용으로 피드백을 추가한 형태이지만 실제 구동 방식은 토픽과 같다. 실제로 rostopic 명령어를 이용하여 토픽을 확인하면 액션은 goal, status, cancel, result, feedback과 같이 액션에서 사용하는 5개의 토픽을 확인할 수 있다. 액션 서버와 클라이언트의 접속은 앞서 설명한 퍼블리셔와 서브스크라이브에서의 TCPROS 접속과 같지만 액션 클라이언트에서 취소 명령을 보내거나 서버에서 결괏값을 보내면 접속이 종료되는 등 사용법은 조금 상이하다.
 
-![image-20240426023418500](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240426023418500.png)
+![image-20240426023418500](./assets/image-20240426023418500.png)
 
 turtlesim을 이용한 ROS 구동 테스트를 예로 들어 설명하자면, 아래 그림처럼 나타낼 수 있다.
 
@@ -1533,7 +1533,7 @@ $ rosrun turtlesim turtlesim_node
 [ INFO] [1714178714.123193877]: Spawning turtle [turtle1] at x=[5.544445], y=[5.544445], theta=[0.000000]
 ```
 
-<img src="/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240427094540236.png" alt="image-20240427094540236" style="zoom:50%;" />
+<img src="./assets/image-20240427094540236.png" alt="image-20240427094540236" style="zoom:50%;" />
 
 ### 5.3.3. roslaunch : ROS 노드 여럿 실행
 
@@ -1915,7 +1915,7 @@ publishing and latching message for 3.0 seconds
 
   x축 좌표로 초당 2.0m의 속도 이동, z축을 중심으로 초당 1.8rad 회전하는 값
 
-<img src="/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428044822186.png" alt="image-20240428044822186" style="zoom:50%;" />
+<img src="./assets/image-20240428044822186.png" alt="image-20240428044822186" style="zoom:50%;" />
 
 ### 5.4.4. rosservice : ROS 서비스
 
@@ -2016,7 +2016,7 @@ $ rosservice call /turtle1/set_pen 255 0 0 5 0
 
 앞의 명령어로 서비스를 요청하여 turtlesim에 사용되는 펜의 특성을 바꾸었고, turtle_teleop_key에서 명령을 내려 이동한 결과 다음과 같이 흰색이었던 펜 색이 빨간색으로 표시됨을 확인할 수 있다.
 
-![image-20240428055903973](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428055903973.png)
+![image-20240428055903973](./assets/image-20240428055903973.png)
 
 ### 5.4.5. rosparam : ROS 파라미터
 
@@ -2271,7 +2271,7 @@ $ rosparam set /turtlesim/background_b 0
 $ rosservice call clear
 ```
 
-![image-20240428061222781](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428061222781.png)
+![image-20240428061222781](./assets/image-20240428061222781.png)
 
 turtlesim 노드는 파라미터를 매번 읽는 것이 아니므로 파라미터를 수정한 후에, 'rosservice call clear' 명령어로 갱신해 줘야 한다.
 
@@ -2286,7 +2286,7 @@ $ rosservice call clear
 
 parameters.yaml에 저장된 파라미터 값에 따라 녹색으로 바뀌었던 배경이 다시 파란색으로 바뀐다.
 
-![image-20240428061634614](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428061634614.png)
+![image-20240428061634614](./assets/image-20240428061634614.png)
 
 #### rosparam delete [파라미터 이름] : 파라미터 삭제
 
@@ -2527,7 +2527,7 @@ Hit space to toggle paused, or 's' to step.
 
 다음 그림처럼 원본과 재생할 때의 데이터가 같음을 확인할 수 있다.
 
-![image-20240428085738695](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428085738695.png)
+![image-20240428085738695](./assets/image-20240428085738695.png)
 
 #### rosbag compress [bag 파일 이름] : 지정한 bag 파일 압축
 
@@ -2825,35 +2825,35 @@ $ rviz
 
 | 아이콘                                                       | 설명                                                         |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| ![image-20240428101915069](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428101915069.png) | x, y, z 축                                                   |
-| ![image-20240428101926768](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428101926768.png) | 카메라 영상 오버레이                                         |
-| ![image-20240428101943623](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428101943623.png) | 거리 영상(point cloud)에 카메라 영상을 입힘                  |
-| ![image-20240428102002557](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102002557.png) | 회전 관절의 힘                                               |
-| ![image-20240428102016979](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102016979.png) | 유체 압력                                                    |
-| ![image-20240428102030133](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102030133.png) | 그리드                                                       |
-| ![image-20240428102049358](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102049358.png) | 그리드 셀(지도에 이용). 주로 내비게이션 costmap의 장애물 표시에 사용. |
-| ![image-20240428102102493](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102102493.png) | 디스플레이들을 그룹으로 묶음                                 |
-| ![image-20240428102129360](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102129360.png) | 조도                                                         |
-| ![image-20240428102137690](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102137690.png) | 이미지 영상. Camera와는 달리 오버레이를 하지 않는다.         |
-| ![image-20240428102146259](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102146259.png) | 인터렉티브 마커 표시. 마우스로 위치(x, y, z) 및 자세(roll, pitch, yaw)를 바꿀 수 있다. |
-| ![image-20240428102200051](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102200051.png) | 레이저 스캔값 표시                                           |
-| ![image-20240428102207995](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102207995.png) | 내비게이션에서 사용하는 점유지도(occupancy map)를 ground plane 위에 표시 |
-| ![image-20240428102225176](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102225176.png) | 마커 표시                                                    |
-| ![image-20240428102234987](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102234987.png) | 마커 디스플레이를 여러 개 표시                               |
-| ![image-20240428102246524](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102246524.png) | 시간 경과에 따른 오도메트리(odometry) 정보를 화살표 형태로 표시. |
-| ![image-20240428102254334](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102254334.png) | 비게이션에서 사용되는 로봇의 경로 표시                       |
-| ![image-20240428102302771](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102302771.png) | 포인트 클라우드 표시. 센서 데이터 표시에 사용. PointCloud와 PointCloud2가 따로 존재 |
-| ![image-20240428102315813](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102315813.png) | PointCloud2가 최신 PCL(Point Cloud Library)에서 사용하고 있는 포맷에 맞추어 있으므로 일반적으로 PointCloud2를 사용하면 된다. |
-| ![image-20240428102323091](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102323091.png) | 둥근 포인트를 표시한다.                                      |
-| ![image-20240428102329893](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102329893.png) | 라인 형태의 폴리곤 외곽선을 표시한다. 주로 로봇의 외형 등을 간단히 2차원 상에 나타내기 위하여 사용된다. |
-| ![image-20240428102337142](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102337142.png) | 3차원상의 자세(pose, 위치 + 방향)를 표시. 위치(x, y, z)와 방향(roll, pitch, yaw)을 나타낸다. 로봇의 위치와 방향, 자세, 목표점. |
-| ![image-20240428102345528](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102345528.png) | 자세(pose)를 복수 개 표시                                    |
-| ![image-20240428102403906](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102403906.png) | 거리 센서의 측정 범위 시각화                                 |
-| ![image-20240428102412666](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102412666.png) | 상대 습도 표시                                               |
-| ![image-20240428102422019](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102422019.png) | 로봇 모델 표시                                               |
-| ![image-20240428102428896](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102428896.png) | 좌표 변환 TF 표시.                                           |
-| ![image-20240428102438072](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102438072.png) | 온도 표시                                                    |
-| ![image-20240428102455556](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240428102455556.png) | 힘과 토그로 비틀림 동작인 렌치를 표시                        |
+| ![image-20240428101915069](./assets/image-20240428101915069.png) | x, y, z 축                                                   |
+| ![image-20240428101926768](./assets/image-20240428101926768.png) | 카메라 영상 오버레이                                         |
+| ![image-20240428101943623](./assets/image-20240428101943623.png) | 거리 영상(point cloud)에 카메라 영상을 입힘                  |
+| ![image-20240428102002557](./assets/image-20240428102002557.png) | 회전 관절의 힘                                               |
+| ![image-20240428102016979](./assets/image-20240428102016979.png) | 유체 압력                                                    |
+| ![image-20240428102030133](./assets/image-20240428102030133.png) | 그리드                                                       |
+| ![image-20240428102049358](./assets/image-20240428102049358.png) | 그리드 셀(지도에 이용). 주로 내비게이션 costmap의 장애물 표시에 사용. |
+| ![image-20240428102102493](./assets/image-20240428102102493.png) | 디스플레이들을 그룹으로 묶음                                 |
+| ![image-20240428102129360](./assets/image-20240428102129360.png) | 조도                                                         |
+| ![image-20240428102137690](./assets/image-20240428102137690.png) | 이미지 영상. Camera와는 달리 오버레이를 하지 않는다.         |
+| ![image-20240428102146259](./assets/image-20240428102146259.png) | 인터렉티브 마커 표시. 마우스로 위치(x, y, z) 및 자세(roll, pitch, yaw)를 바꿀 수 있다. |
+| ![image-20240428102200051](./assets/image-20240428102200051.png) | 레이저 스캔값 표시                                           |
+| ![image-20240428102207995](./assets/image-20240428102207995.png) | 내비게이션에서 사용하는 점유지도(occupancy map)를 ground plane 위에 표시 |
+| ![image-20240428102225176](./assets/image-20240428102225176.png) | 마커 표시                                                    |
+| ![image-20240428102234987](./assets/image-20240428102234987.png) | 마커 디스플레이를 여러 개 표시                               |
+| ![image-20240428102246524](./assets/image-20240428102246524.png) | 시간 경과에 따른 오도메트리(odometry) 정보를 화살표 형태로 표시. |
+| ![image-20240428102254334](./assets/image-20240428102254334.png) | 비게이션에서 사용되는 로봇의 경로 표시                       |
+| ![image-20240428102302771](./assets/image-20240428102302771.png) | 포인트 클라우드 표시. 센서 데이터 표시에 사용. PointCloud와 PointCloud2가 따로 존재 |
+| ![image-20240428102315813](./assets/image-20240428102315813.png) | PointCloud2가 최신 PCL(Point Cloud Library)에서 사용하고 있는 포맷에 맞추어 있으므로 일반적으로 PointCloud2를 사용하면 된다. |
+| ![image-20240428102323091](./assets/image-20240428102323091.png) | 둥근 포인트를 표시한다.                                      |
+| ![image-20240428102329893](./assets/image-20240428102329893.png) | 라인 형태의 폴리곤 외곽선을 표시한다. 주로 로봇의 외형 등을 간단히 2차원 상에 나타내기 위하여 사용된다. |
+| ![image-20240428102337142](./assets/image-20240428102337142.png) | 3차원상의 자세(pose, 위치 + 방향)를 표시. 위치(x, y, z)와 방향(roll, pitch, yaw)을 나타낸다. 로봇의 위치와 방향, 자세, 목표점. |
+| ![image-20240428102345528](./assets/image-20240428102345528.png) | 자세(pose)를 복수 개 표시                                    |
+| ![image-20240428102403906](./assets/image-20240428102403906.png) | 거리 센서의 측정 범위 시각화                                 |
+| ![image-20240428102412666](./assets/image-20240428102412666.png) | 상대 습도 표시                                               |
+| ![image-20240428102422019](./assets/image-20240428102422019.png) | 로봇 모델 표시                                               |
+| ![image-20240428102428896](./assets/image-20240428102428896.png) | 좌표 변환 TF 표시.                                           |
+| ![image-20240428102438072](./assets/image-20240428102438072.png) | 온도 표시                                                    |
+| ![image-20240428102455556](./assets/image-20240428102455556.png) | 힘과 토그로 비틀림 동작인 렌치를 표시                        |
 
 ## 6.2. ROS GUI 개발 도구(rqt)
 
@@ -3056,7 +3056,7 @@ $ rusrun turtlesim turtle_teleop_key
 $ rqt_graph
 ```
 
-<img src="/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240429052634032.png" alt="image-20240429052634032" style="zoom:67%;" />
+<img src="./assets/image-20240429052634032.png" alt="image-20240429052634032" style="zoom:67%;" />
 
 동그라미는 노드를 의미하고 네모는 토픽 메시지를 의미한다. 화살표는 메시지의 송수신을 의미한다. turtle_teleop_key를 실행할 때 teleop_turtle 노드, turtlesim_node 노드를 실행할 때 turtlesim 노드가 각각 실행되었다. 이 두 노드는 키보드 방향키 값을 병진속도와 회전속도 메시지 형태(토픽명 : /turtle1/cmd_vel)로 데이터를 송수신하고 있다는 것을 확인할 수 있다.
 
@@ -3090,7 +3090,7 @@ rosrun turtlesim turtle_teleop_key
 
 아래와 같이 거북이의 x, y 위치, theta 방향 그리고 병진속도와 회전속도가 표시됨을 확인할 수 있다. 속도, 가속도 등의 시간경과에 따른 센서값 표시에 적합하다.
 
-![image-20240429054114215](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240429054114215.png)
+![image-20240429054114215](./assets/image-20240429054114215.png)
 
 ### 6.2.6. rqt_bag
 
