@@ -3100,12 +3100,2027 @@ rosrun turtlesim turtle_teleop_key
 
 ```
 rosrun usb_cam usb_cam_node
-rosbag record /image_raw
+rosbag record /usb_cam/image_raw
 rqt
 ```
 
 'rqt' 명령어로 rqt를 실행하고 메뉴의 [플러그인(Plugins)] → [로깅(logging)] → [Bag]를 선택한다. 그 다음 왼쪽 폴더 모양(Load Bag) 아이콘을 선택하여 방금 기록해둔 *.bag 파일을 불러온다. 그러면 카메라 영상을 시간 축 변화로 확인할 수 있다. 또한 이를 확대, 재생, 시간별 데이터 수 등을 확인할 수 있으며, 마우스 오른쪽 버튼을 누르면 'Publish' 옵션이 있는데 이를 통해 메시지를 다시 발행할 수 있다.
 
+![image-20240430231739221](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240430231739221.png)
+
+# 7장. ROS 기본 프로그래밍
+
+## 7.1. ROS 프로그래밍 전에 알아둬야 할 사항
+
+### 7.1.1. 표준 단위
+
+ROS에서 사용하는 메시지는 세계에서 가장 널리 사용되는 표준 단위 SI를 권장하고 있다. 이를 지키기 위하여 [REP-0103](https://www.ros.org/reps/rep-0103.html)에도 이를 명시하고 있다. 예를 들어 길이는 미터, 질량은 킬로그램, 시간은 초, 단위는 암페어, 각은 라디안, 주기는 헤르츠, 힘은 뉴턴, 전력은 와트, 전압은 볼트, 온도는 섭씨를 이용한다. 그외의 단위들도 모두 다음의 단위들의 조합으로 이루어진다. 예를 들어 병진속도는 meter/sec, 회전속도는 radian/sec를 이용하고 있다. 메시지는 ROS에서 제공하고 있는 것을 재사용하기를 권장하고는 있지만 필요에 따라서 사용자가 재정의한 완전히 새로운 형태의 메시지를 만들어 사용해도 문제없다. 하지만 그 메시지가 사용하는 단위만큼은 SI 단위를 지켜야지 다른 사용자들이 단위 변환없이 사용할 수 있기 때문에 반드시 지켜야 할 사항 중의 하나이다.
+
+> ※ cf) : REP(ROS Enhancement Proposals)
+>
+> REP는 ROS 커뮤니티에서 유저들이 제안하는 규칙, 새로운 기능, 관리 방법 등을 담은 제안서로 민주적으로 ROS의 규칙을 만들어 내거나 ROS의 개발, 운영, 관리에 필요한 내용을 협의할 때 사용된다. 하나의 제안이 접수되면 많은 ROS 유저들이 이를 리뷰하고 서로 협의를 통해 만들어 나아가는 표준 문서라 볼 수 있다. 정리된 REP 문서는 http://www.ros.org/reps/rep-0000.html에서 확인해 볼 수 있다.
+
+### 7.1.2. 좌표 표현 방식
+
+[ROS에서의 회전축](http://www.ros.org/reps/rep-0103.html#coordinate-frame-conventions)은 그림 7-1의 좌측 그림과 같이 x, y, z축을 사용한다. 정면은 x축의 + 방향이며 축은 빨간색(R)으로 표현한다. 왼쪽은 y축의 + 방향으로 축은 녹색(G)으로 표현한다. 마지막으로 위쪽은 z축의 + 방향으로 축은 파란색(B)으로 표현한다. 오른손 법칙을 사용하면 된다.
+
+![img](https://velog.velcdn.com/images%2Fbbirong%2Fpost%2F914c949a-91f2-42ed-8de4-016797b7e8b0%2Fimage.png)
+
+### 7.1.3. 프로그래밍 규칙
+
+ROS는 각 프로그램의 소스 코드 재사용성의 극대화를 위해 프로그래밍 스타일 가이드를 지정하여 지키도록 권고하고 있다. 이는 소스 코드 작업 시 빈번히 생기는 개발자의 부가적인 선택을 줄여주면서, 다른 협업 개발자 및 이용자의 코드 이해도를 높이며 상호 간의 코드 리뷰를 쉽게 해준다. 이는 필수 사항은 아니지만 많은 ROS 유저들이 서로 합의하에 지키고 있는 규칙이다.
+
+규칙과 관련한 내용은 언어별로 위키([C++](http://wiki.ros.org/CppStyleGuide), [Python](http://wiki.ros.org/PyStyleGuide))에 상세히 설명되어 있다. 
+
+※ cf) : [기본적인 이름 규칙](http://wiki.ros.org/ROS/Patterns/Conventions#Naming_ROS_Resources)
+
+### 7.2. 퍼블리셔와 서브스크라이버 노드 작성 및 실행
+
+ROS 메시지 통신에서 사용되는 퍼블리셔와 서브스크라이버는 송신과 수신으로 대체할 수 있다. ROS에서는 송신측을 퍼블리셔, 수신측을 서브스크라이버로 부른다. 
+
+### 7.2.1. 패키지 생성
+
+다음은 ros_tutorials_topic 패키지를 생성하는 명령어이다. 이 패키지는 message_generation, std_msgs, roscpp 패키지를 의존하므로 의존성 옵션으로 달아주었다. message_generation는 새로운 메시지를 생성할 때 사용되는 패키지와 ROS의 표준 메시지 패키지인 std_msgs, ROS에서 C/C++를 사용하기 위해 클라이언트 라이브러리인 roscpp를 사용하겠다는 것으로 패키지 생성에 앞서 미리 설치해야 한다는 의미다. 이러한 의존성 패키지 설정은 패키지를 생성할 때 지정할 수도 있지만, 생성한 다음에 package.xml에서 직접 수정해도 상관없다.
+
+```
+cd ~/catkin_ws/src
+catkin_create_pkg ros_tutorials_topic message_generation std_msgs roscpp
+```
+
+### 7.2.2. 패키지 설정 파일(package.xml) 수정
+
+*ros_tutorials_topic/Package.xml*
+
+```
+<?xml version="1.0"?>
+<package format="2">
+  <name>ros_tutorials_topic</name>
+  <version>0.0.0</version>
+  <description>The ros_tutorials_topic package</description>
+
+  <maintainer email="jungsoeko@gmail.com">ojs</maintainer>
+
+  <license>Apache License 2.0</license>
+  <author email="jungsoeko@gmail.com">ojs</author>
+  <maintainer email="jungsoeko@gmail.com">ojs</maintainer>
+  <url type="bugtracker">https://github.com/jungsoek/rosstudy/issues</url>
+  <url type="repository">https://github.com/jungsoek/rosstudy/ros_tutorial</url>
+  <url type="website">http://www.robotis.com</url>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <export></export>
+</package>
+```
+
+### 7.2.3. 빌드 설정 파일(CMakeLists.txt) 구성
+
+*ros_tutorials_topic/CMakeLists.txt*
+
+```
+cmake_minimum_required(VERSION 3.0.2)
+project(ros_tutorials_topic)
+
+## 캐킨 빌드를 할 때 요구되는 구성요소 패키지이다.
+## 의존성 패키지로 message_generation, std_msgs, roscpp이며
+## 이 패키지들이 존재하지 않으면 빌드 도중 에러가 난다.
+find_package(catkin REQUIRED COMPONENTS
+  message_generation
+  roscpp
+  std_msgs
+)
+
+## 메시지 선언 : MsgTutorial.msg
+add_message_files(
+  FILES
+  MsgTutorial.msg
+)
+
+## Generate services in the 'srv' folder
+# add_service_files(
+#   FILES
+#   Service1.srv
+#   Service2.srv
+# )
+
+## Generate actions in the 'action' folder
+# add_action_files(
+#   FILES
+#   Action1.action
+#   Action2.action
+# )
+
+## 의존하는 메시지를 설정하는 옵션이다.
+## std_msgs가 설치되어 있지 않다면 빌드 도중에 에러가 난다.
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
+## 캐킨 패키지 옵션으로
+## 라이브러리, 캐킨 빌드 의존성, 시스템 의존 패키지를 기술한다.
+catkin_package(
+ LIBRARIES ros_tutorials_topic
+ CATKIN_DEPENDS roscpp std_msgs
+)
+
+## 인클루드 디렉터리를 설정한다.
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+)
+
+## topic_publisher 노드에 대한 빌드 옵션이다.
+## 실행 파일, 타깃 링크 라이브러리, 추가 의존성 등을 설정한다.
+add_executable(
+  topic_publisher src/topic_publisher.cpp
+)
+add_dependencies(topic_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(topic_publisher ${catkin_LIBRARIES}) 
+
+## topic_subscriber 노드에 대한 빌드 옵션이다.
+add_executable(topic_subscriber src/topic_subscriber.cpp)
+add_dependencies(topic_subscriber ${${PROJECT_NAME}_EXPORTED_TARGETS}
+${catkin_EXPORTED_TARGETS})
+target_link_libraries(topic_subscriber ${catkin_LIBRARIES})
+```
+
+### 7.2.4. 메시지 작성 파일
+
+앞서 CMakeLists.txt 파일에 다음과 같은 옵션을 추가했다.
+
+```
+add_message_files(FILES MsgTutorial.msg)
+```
+
+이는 이번 노드에서 사용할 메시지인 MsgTutorial.msg를 빌드할 때 포함하라는 이야기다. 현재 MsgTutorial.msg는 생성하지 않았으므로 다음 순서대로 진행한다.
+
+```
+roscd ros_tutorials_topic
+mkdir msg
+cd msg
+touch MsgTutorial.msg
+```
+
+*ros_tutorials_topic/msg/MsgTutorial.msg*
+
+```
+time stamp
+int32 data
+```
+
+> ※ cf) : 메시지(msg, srv, action) 패키지의 독립화
+>
+> 일반적으로 메시지 파일인 msg와 서비스 파일인 srv는 실행 노드에 포함하기 보다는 메시지 파일만으로 구성된 독립된 패키지로 만드는 것을 추천한다. 그 이유로 서브스크라이버 노드와 퍼블리셔 노드가 다른 컴퓨터에서 실행된다고 가정했을 때, 그 둘의 노드는 상호 의존성을 갖춰야만 사용이 가능하기에 불필요한 노드를 설치해야 하는 문제점이 있다. 메시지만의 패키지를 독립적으로 만들어주면 메시지 독립 패키지만 의존성 옵션에 추가하면 되기 때문에 불필요한 패키지 간의 의존성을 없앨 수 있다. 다만, 이 책에서는 코드를 간결하게 만들기 위하여 메시지 파일을 실행 노드에 포함하였다.
+
+### 7.2.5. 퍼블리셔 노드 작성
+
+앞서 CMakeLists.txt 파일에 다음과 같은 실행 파일을 생성하는 옵션을 주었다.
+
+```
+add_executable(topic_publisher src/topic_publisher.cpp)
+```
+
+즉 src 폴더의 topic_publisher.cpp 파일을 빌드하여 topic_publisher 실행 파일을 만든다는 이야기다. 다음 순서대로 퍼블리셔 노드 기능을 수행하는 소스를 작성한다.
+
+```
+roscd ros_tutorials_topic/src
+touch topic_publisher.cpp
+```
+
+*ros_tutorials_topic/src/topic_publisher.cpp*
+
+```cpp
+// ROS 기본 헤더파일
+#include "ros/ros.h"    
+// MsgTutorial 메시지 파일 헤더(빌드 후 자동 생성됨)
+#include "ros_tutorials_topic/MsgTutorial.h"    
+
+int main(int argc, char **argv) {   // 노드 메인 함수
+    ros::init(argc, argv, "topic_publisher");   // 노드명 초기화
+    ros::NodeHandle nh;     // ROS 시스템과 통신을 위한 노드 핸들 선언
+
+    // 퍼블리셔 선언,
+    // ros_tutorials_topic 패키지의 MsgTutorial 메시지 파일을 이용한
+    // 퍼블리셔 ros_tutorial_pub를 작성한다.
+    // 토픽명은 "ros_tutorial_msg"이며,
+    // 퍼블리셔 큐(queue) 사이즈를 100개로 설정한다는 것이다.
+    ros::Publisher ros_tutorial_pub = 
+    nh.advertise<ros_tutorials_topic::MsgTutorial>("ros_tutorial_msg", 100);
+
+    // 루프 주기를 설정한다.
+    // "10"이라는 것은 10Hz를 말하는 것으로 0.1초 간격으로 처리가 반복된다.
+    ros::Rate loop_rate(10);
+
+    ros_tutorials_topic::MsgTutorial msg;   // MsgTutorial 메시지 파일 형식으로 msg라는 메시지를 선언
+    int count = 0;  // 메시지에 사용될 변수 선언
+
+    while (ros::ok()) {
+        msg.stamp = ros::Time::now();   // 현재 시간을 msg의 하위 stamp 메시지에 담는다.
+        msg.data = count;   // count라는 변숫값을 msg의 하위 data 메시지에 담는다.
+
+        ROS_INFO("send msg = %d", msg.stamp.sec);   // stamp.set 메시지를 표시한다.
+        ROS_INFO("send msg = %d", msg.stamp.nsec);   // stamp.nset 메시지를 표시한다.
+        ROS_INFO("send msg = %d", msg.data);   // data 메시지를 표시한다.
+
+        ros_tutorial_pub.publish(msg);  // 메시지를 발행한다.
+
+        loop_rate.sleep();
+
+        ++count;
+    }
+
+    return 0;
+}     
+```
+
+### 7.2.6. 서브스크라이버 노드 작성
+
+CMakeLists.txt 파일에 다음과 같은 실행 파일을 생성하는 옵션을 넣었다.
+
+```
+add_executable(topic_subscriber src/topic_subscriber.cpp)
+```
+
+즉 topic_subscriber.cpp 파일을 빌드하여 topic_subscriber 실행 파일을 만든다는 이야기다. 다음 순서대로 서브스크라이버 노드 기능을 수행하는 소스를 작성해보자.
+
+```
+roscd ros_tutorials_topic/src
+touch topic_subscriber.cpp
+```
+
+```cpp
+#include "ros/ros.h"
+#include "ros_tutorials_topic/MsgTutorial.h"
+
+// 메시지 콜백함수로써, 밑에서 설정한 ros_tutorial_msg라는 이름의 토픽
+// 메시지를 수신하였을 때 동작하는 함수이다.
+// 입력 메시지로는 ros_tutorials_topic 패키지의 MsgTutorial 메시지를 받도록 되어있다.
+void msgCallback(const ros_tutorials_topic::MsgTutorial::ConstPtr&msg) {
+    ROS_INFO("recieve msg = %d", msg->stamp.sec); // stamp.sec 메시지를 표시한다.
+    ROS_INFO("recieve msg = %d", msg->stamp.nsec); // stamp.nsec 메시지를 표시한다.
+    ROS_INFO("recieve msg = %d", msg->data); // data 메시지를 표시한다.
+}
+
+int main(int argc, char **argv) {   // 노드 메인 함수
+    ros::init(argc, argv, "topic_subscriber");  // 노드명 초기화
+
+    ros::NodeHandle nh;     // ROS 시스템과 통신을 위한 노드 핸들 선언
+
+    // 서브스크라이버 선언,
+    // ros_tutorials_topic 패키지의 MsgTutorial 메시지 파일을 이용한
+    // 서브스크라이버 ros_tutorial_sub를 작성한다.
+    // 토픽명은 "ros_tutorial_msg"이며,
+    // 서브스크라이버 큐(queue) 사이즈를 100개로 설정한다는 것이다.
+    ros::Subscriber ros_tutorial_sub = nh.subscribe("ros_tutorial_msg", 100, msgCallback);
+
+    // 콜백함수 호출을 위한 함수로써,
+    // 메시지가 수신되기를 대기,
+    // 수신되었을 경우 콜백함수를 실행한다.
+    ros::spin();
+
+    return 0;
+}
+```
+
+```
+cd ~/catkin_ws
+catkin_make
+```
+
+### 7.2.7. 노드 빌드
+
+생성한 ros_tutorial_topic 패키지의 메시지 파일, 퍼블리셔 노드, 서브스크라이버 노드를 빌드한다.
+
+빌드된 결과물은 ~/catkin_ws의 /build와 /devel 폴더에 각각 생성된다. /build 폴더에는 캐킨 빌드에서 사용된 설정 내용이 저장되며, '/devel/lib/ros_tutorials_topic' 폴더에는 실행 파일, '/devel/include/ros_tutorials_topic'에는 메시지 파일로부터 자동 생성된 메시지 헤더 파일이 저장된다.
+
+*~/catkin_ws/build*
+
+```
+$ ls
+CATKIN_IGNORE           bin
+CMakeCache.txt          catkin
+CMakeFiles              catkin_generated
+CTestConfiguration.ini  catkin_make.cache
+CTestCustom.cmake       cmake_install.cmake
+CTestTestfile.cmake     gtest
+Makefile                ros_tutorials_topic
+atomic_configure        test_results
+```
+
+*~/catkin_ws/devel*
+
+```
+$ ls
+_setup_util.py  lib               setup.bash
+cmake.lock      local_setup.bash  setup.sh
+env.sh          local_setup.sh    setup.zsh
+include         local_setup.zsh   share
+```
+
+### 7.2.8. 퍼블리셔 실행
+
+```
+roscore
+```
+
+```
+rosrun ros_tutorials_topic topic_publisher
+
+[ INFO] [1714496817.967005639]: send msg = 1714496817
+[ INFO] [1714496817.967647137]: send msg = 966968017
+[ INFO] [1714496817.967659825]: send msg = 0
+[ INFO] [1714496818.067189989]: send msg = 1714496818
+[ INFO] [1714496818.067323214]: send msg = 67109349
+[ INFO] [1714496818.067417885]: send msg = 1
+[ INFO] [1714496818.167391335]: send msg = 1714496818
+
+...
+
+```
+
+화면에서 표시되고 있는 것은 printf() 기능과 비슷한 ROS_INFO() 함수를 이용한 것뿐이다. 실제로 토픽을 퍼블리시하기 위해서는 서브스크라이버 노드 및 rostopic과 같은 서브스크라이버 노드와 같은 역할을 하는 명령어를 이용해야만 한다.
+
+우선 rostopic list 명령어로 ros_tutorial_msg 토픽이 있음을 확인한다.
+
+```
+$ rostopic list
+/ros_tutorial_msg
+/rosout
+/rosout_agg
+/usb_cam/camera_info
+/usb_cam/image_raw
+/usb_cam/image_raw/compressed
+/usb_cam/image_raw/compressed/parameter_descriptions
+/usb_cam/image_raw/compressed/parameter_updates
+/usb_cam/image_raw/compressedDepth
+/usb_cam/image_raw/compressedDepth/parameter_descriptions
+/usb_cam/image_raw/compressedDepth/parameter_updates
+/usb_cam/image_raw/theora
+/usb_cam/image_raw/theora/parameter_descriptions
+/usb_cam/image_raw/theora/parameter_updates
+```
+
+다음은 ros_tutorial_msg 토픽의 메시지를 확인한다.
+
+```
+$ rostopic echo /ros_tutorial_msg
+stamp: 
+  secs: 1714497601
+  nsecs: 243399908
+data: 2858
+---
+stamp: 
+  secs: 1714497601
+  nsecs: 343246432
+data: 2859
+---
+stamp: 
+  secs: 1714497601
+  nsecs: 443406938
+data: 2860
+---
+
+...
+
+```
+
+### 7.2.9. 서브스크라이버 실행
+
+```
+rosrun ros_tutorials_topic topic_subscriber
+```
+
+```
+[ INFO] [1714497740.444568684]: recieve msg = 1714497740
+[ INFO] [1714497740.447800931]: recieve msg = 443394612
+[ INFO] [1714497740.447865750]: recieve msg = 4250
+[ INFO] [1714497740.544223960]: recieve msg = 1714497740
+[ INFO] [1714497740.544356935]: recieve msg = 543387470
+[ INFO] [1714497740.544447014]: recieve msg = 4251
+[ INFO] [1714497740.644251038]: recieve msg = 1714497740
+[ INFO] [1714497740.644368140]: recieve msg = 643396796
+[ INFO] [1714497740.644456417]: recieve msg = 4252
+[ INFO] [1714497740.744242833]: recieve msg = 1714497740
+[ INFO] [1714497740.744365578]: recieve msg = 743368325
+
+...
+
+```
+
+### 7.2.10. 실행된 노드들의 통신 상태 확인
+
+rqt를 이용하여 실행된 노드들의 통신 상태를 확인한다. rqt_graph 혹은 rqt 중 하나를 사용하면 되는데, rqt를 실행했을 때는 메뉴에서 [플러그인(Plugins)] → [인트로스펙션(Introsection)] → [노드 그래프(Node Graph)]를 선택하면, ROS에서 구동 중인 노드와 메시지를 확인할 수 있다.
+
+```
+rqt_graph 혹은 rqt
+```
+
+![image-20240501022634725](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240501022634725.png)
+
+현재 ROS 네트워크상에는 퍼블리셔 노드(topic_publisher)가 토픽(ros_tutorial_msg)을 송신중이고, 이를 서브스크라이버 노드(topic_subscriber)가 수신하고 있음을 확인할 수 있다.
+
+## 7.3. 서비스 서버와 클라이언트 노드 작성 및 실행
+
+서비스 요청(request)이 있을 때만 응답(response)하는 서비스 서버(service server)와 요청하고 응답받는 서비스 클라이언트(service client)로 나뉜다. 서비스는 토픽과는 달리 일회성 메시지 통신이다. 따라서 서비스의 요청과 응답이 완료되면 연결된 두 노드는 접속이 끊긴다.
+
+이러한 서비스는 로봇에 특정 동작을 수행하도록 요청할 때 많이 사용된다. 혹은 특정 조건에 따라 이벤트를 발생해야 할 노드에 사용된다. 또한 일회성 통신 방식이라서 네트워크에 부하가 적기 때문에 토픽을 대체하는 수단으로 사용되기도 한다.
+
+### 7.3.1. 패키지 생성
+
+다음은 ros_tutorials_service 패키지를 생성하는 명령어이다. 이 패키지는 message_generation, std_msgs, roscpp 패키지를 의존하므로 의존성 옵션으로 달아주었다. 이 의존성 옵션들을 하나씩 살펴보자면 새로운 메시지를 생성할 때 사용되는 message_generation 패키지와 ROS의 표준 메시지인 std_msgs, ROS에서 C/C++을 사용하기 위해 클라이언트 라이브러리인 roscpp를 사용하겠다는 것으로 패키지 생성에 앞서 미리 설치해야 한다는 의미다. 
+
+```
+cd ~/catkin_ws/src
+catkin_create_pkg ros_tutorials_service message_generation std_msgs roscpp
+```
+
+### 7.3.2. 패키지 설정 파일(package.xml) 수정
+
+*ros_tutorials_service/package.xml*
+
+```
+<?xml version="1.0"?>
+<package format="2">
+  <name>ros_tutorials_service</name>
+  <version>0.0.0</version>
+  <description>The ros_tutorials_service package</description>
+
+  <maintainer email="jungsoeko@gmail.com">ojs</maintainer>
+
+  <license>Apache License 2.0</license>
+  <author email="jungsoeko@gmail.com">ojs</author>
+  <maintainer email="jungsoeko@gmail.com">ojs</maintainer>
+  <url type="bugtracker">https://github.com/jungsoek/rosstudy/issues</url>
+  <url type="repository">https://github.com/jungsoek/rosstudy/ros_tutorial</url>
+  <url type="website">http://www.robotis.com</url>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <export></export>
+</package>
+```
+
+### 7.3.3. 빌드 설정 파일(CMakeLists.txt) 수정
+
+*ros_tutorials_service/CMakeLists.txt*
+
+```
+cmake_minimum_required(VERSION 3.0.2)
+project(ros_tutorials_service)
+
+## 캐킨 빌드를 할 때 요구되는 구성요소 패키지이다.
+## 의존성 패키지로 message_generation, std_msgs, roscpp이며
+## 이 패키지들이 존재하지 않으면 빌드 도중 에러가 난다.
+find_package(catkin REQUIRED COMPONENTS
+  message_generation
+  std_msgs
+  roscpp
+)
+
+## 서비스 선언 : SrvTutorial.srv
+add_service_files(
+  FILES
+  SrvTutorial.srv
+)
+
+## 의존하는 메시지를 설정하는 옵션이다.
+## std_msgs가 설치되어 있지 않다면 빌드 도중에 에러가 난다.
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
+## 캐킨 패키지 옵션으로
+## 라이브러리, 캐킨 빌드 의존성, 시스템 의존 패키지를 기술한다.
+catkin_package(
+ LIBRARIES ros_tutorials_topic
+ CATKIN_DEPENDS roscpp std_msgs
+)
+
+## 인클루드 디렉터리를 설정한다.
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+)
+
+## service_server 노드에 대한 빌드 옵션이다.
+## 실행 파일, 타겟 링크 라이브러리, 추가 의존성 등을 설정한다.
+add_executable(
+  service_server 
+  src/service_server.cpp
+)
+add_dependencies(
+  service_server 
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(
+  service_server
+  ${catkin_LIBRARIES}
+)
+
+## service_client 노드에 대한 빌드 옵션이다.
+add_executable(
+  service_client
+  src/service_client.cpp
+)
+add_dependencies(
+  service_client
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(
+  service_client
+  ${catkin_LIBRARIES}
+)
+```
+
+### 7.3.4. 서비스 파일 작성
+
+CMakeLists.txt 파일에 다음과 같은 옵션을 넣었다.
+
+```
+add_service_files(FILES SrvTutorial.srv)
+```
+
+이는 이번 노드에서 사용할 서비스인 SrvTutorial.srv를 빌드할 때 포함한다는 것이다. 패키지 디렉터리에 srv 디렉터리를 생성하고 srv 파일을 생성한다.
+
+```
+roscd ros_tutorials_service
+mkdir srv
+cd srv
+touch SrvTutorial.srv
+```
+
+*ros_tutorials_service/srv/SrvTutorials.srv*
+
+```
+int64 a
+int64 b
+---
+int64 result
+```
+
+### 7.3.5. 서비스 서버 노드 작성
+
+CMakeLists.txt 파일에 다음과 같은 실행 파일을 생성하는 옵션을 넣었다.
+
+```
+add_executable(service_server src/service_server.cpp)
+```
+
+즉 service_server.cpp 파일을 빌드해 service_server 실행 파일을 만든다는 것이다. 서비스 서버 노드 기능을 수행하는 프로그램을 작성한다.
+
+```
+roscd ros_tutorials_service/src
+touch service_server.cpp
+```
+
+*ros_tutorials_service/src/service_server.cpp*
+
+```cpp
+// ROS 기본 헤더 파일
+#include "ros/ros.h"
+// SrvTutorial 서비스 파일 헤더(빌드 후 자동 생성됨)
+#include "ros_tutorials_service/SrvTutorial.h"
+
+// 서비스 요청이 있을 경우, 아래의 처리를 수행한다.
+// 서비스 요청은 req, 서비스 응답은 res로 설정하였다.
+bool calculation(
+    ros_tutorials_service::SrvTutorial::Request &req,
+    ros_tutorials_service::SrvTutorial::Response &res
+) {
+    // 서비스 요청시 받은 a와 b값을 더하여 서비스 응답값에 저장한다.
+    res.result = req.a + req.b;
+
+    // 서비스 요청에 사용된 a, b값의 표시 및 서비스 응답에 해당되는 result값을 출력한다.
+    ROS_INFO("request: x=%ld, y=%ld", (long int)req.a, (long int)req.b);
+    ROS_INFO("sending back response: %ld", (long int)res.result);
+
+    return true;
+}
+
+int main(int argc, char **argv) {  // 노드 메인 함수
+    ros::init(argc, argv, "service_server");    // 노드명 초기화
+    ros::NodeHandle nh;    // 노드 핸들 선언
+
+    // 서비스 서버 선언,
+    // ros_tutorials_service 패키지의 SrvTutorial 서비스 파일을 이용한
+    // 서비스 서버 ros_tutorials_service_server를 선언한다.
+    // 서비스명은 ros_tutorial_srv이며 서비스 요청이 있을 때,
+    // calculation라는 함수를 실행하라는 설정이다.
+    ros::ServiceServer ros_tutorial_service_server 
+        = nh.advertiseService("ros_tutorial_srv", calculation);
+
+    ROS_INFO("ready srv server!");
+
+    ros::spin();     // 서비스 요청을 대기한다.
+
+    return 0;
+}
+```
+
+### 7.3.4. 서비스 클라이언트 노드 작성
+
+CMakeLists.txt 파일에 다음과 같은 실행 파일을 생성하는 옵션을 넣었다.
+
+```
+add_executable(service_client src/service_client.cpp)
+```
+
+즉 service_client.cpp 파일을 빌드하여 service_client 실행 파일을 만든다는 것이다. 패키지의 src 디렉터리에 service_client.cpp 파일을 생성하고 서비스 클라이언트 노드 기능을 수행하는 프로그램을 작성한다.
+
+```cpp
+#include "ros/ros.h"    // ROS 기본 헤더 파일
+#include "ros_tutorials_service/SrvTutorial.h"  // SrvTutorial 서비스 파일 헤더(빌드 후 자동 생성됨)
+#include <cstdlib>  // atoll 함수 사용을 위한 라이브러리
+
+int main(int argc, char **argv) {
+    ros::init(argc, argv, "service_client");
+
+    if(argc !=3) { // 입력값 오류 처리
+        ROS_INFO("cmd : rosrun ros_tutorials_service service_client arg0 arg1");
+        ROS_INFO("arg0: double number, arg1: double number");
+        return 1;
+    }
+
+    ros::NodeHandle nh; // ROS 시스템과 통신을 위한 노드 핸들 선언
+
+    // 서비스 클라이언트 선언, ros_tutorial_service 패키지의 
+    // SrvTutorial 서비스 파일을 이용한
+    // 서비스 클라이언트 ros_tutorials_service_client를 선언한다.
+    // 서비스명은 "ros_tutorial_srv"이다.
+    ros::ServiceClient ros_tutorial_service_client = 
+    nh.serviceClient<ros_tutorials_service::SrvTutorial>("ros_tutorial_srv");
+
+    // srv라는 이름으로 SrvTutorial 서비스 파일을 이용하는 서비스를 선언한다.
+    ros_tutorials_service::SrvTutorial srv;
+
+    // 서비스 요청 값으로 노드가 실행될 때 입력으로 사용된 매개변수를 각각 a, b에 저장한다.
+    srv.request.a = atoll(argv[1]);
+    srv.request.b = atoll(argv[2]);
+
+    // 서비스를 요청하고, 요청이 받아들여졌을 경우, 응답값을 표시한다.
+    if(ros_tutorial_service_client.call(srv)) {
+        ROS_INFO(
+            "send srv, srv.Request.a and b : %ld, %ld", 
+            (long int)srv.request.a, 
+            (long int)srv.request.b
+        );
+        ROS_INFO(
+            "receive srv, srv.Response.result : %ld",
+            (long int)srv.response.result
+        );
+    } else {
+        ROS_ERROR("Failed to call service ros_tutorial_srv");
+        return 1;
+    }
+    return 0;
+}
+```
+
+### 7.3.7. 노드 빌드
+
+```
+cd ~/catkin_ws && catkin_make
+```
+
+### 7.3.8. 서비스 서버 실행
+
+앞에서 작성한 서비스 서버는 서비스 요청이 있기 전까지 아무런 처리를 하지 않고 기다리도록 프로그래밍하였다. 그러므로 다음 명령어를 실행하면 서비스 서버는 서비스 요청을 기다린다.
+
+```
+$ rosrun ros_tutorials_service service_server
+[ INFO] [1714508544.301410658]: ready srv server!
+```
+
+### 7.3.9. 서비스 클라이언트 실행
+
+서비스 서버를 실행했다면 다음 명령어로 서비스 클라이언트를 실행한다.
+
+```
+$ rosrun ros_tutorials_service service_client 2 3
+[ INFO] [1714508756.327421482]: send srv, srv.Request.a and b : 2, 3
+[ INFO] [1714508756.328326123]: receive srv, srv.Response.result : 5
+```
+
+서비스 클라이언트를 실행하면서 입력해준 실행 매개변수 2와 3을 서비스 요청값으로 전송하도록 프로그래밍하였다. 그 결과 2와 3은 각각 a, b 값으로 서비스를 요청하게 되고, 결괏값으로 둘의 합인 5를 응답값으로 전송받았다. 여기서 단순하게 실행 매개변수로 이를 이용했으나, 실제 활용에서는 명령어로 대체해도 되고, 계산되어야할 값, 트리거용 변수 등을 서비스 요청값으로 사용할 수 있다.
+
+참고로 서비스는 토픽 퍼블리셔 및 서브스크라이버와 달리 일회성이므로 rqt_graph 등에서 확인할 수 없다.
+
+### 7.3.10. rosservice call 명령어 사용 방법
+
+서비스 요청은 앞서 service_client와 같은 서비스 클라이언트 노드를 실행하는 방법도 있지만 'rosservice call' 명령어나 rqt의 ServiceCaller를 이용하는 방법도 있다. 
+
+다음 명령어와 같이 rosservice call 명령어 뒤에 /ros_tutorial_srv 처럼 해당하는 서비스 이름을 적고 그 다음 이어서 서비스 요청에 필요한 매개변수를 적어주면 된다.
+
+```
+$ rosservice call /ros_tutorial_srv 10 2
+result: 12
+```
+
+### 7.3.11. GUI 도구인 Service Caller 사용 방법
+
+rqt를 실행한다.
+
+```
+rqt
+```
+
+그 다음, rqt 프로그램 메뉴에서 [플러그인(Plugins)] → [서비스(Service)] → [Service Caller]를 선택하면 다음과 같은 화면이 나온다.
+
+![image-20240501055201851](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240501055201851.png)
+
+상단에 있는 Service 항목에서 서비스 이름을 선택하면 Request에 서비스 요청에 필요한 정보가 보인다. 서비스를 요청하려면 각 요청 정보의 Expression에 정보를 입력한다. 이후 전화기 모양의 <Call> 아이콘을 클릭하면 서비스 요청이 실행되고, 화면 밑에 있는 Response에 서비스 응답에 대한 결과가 표시된다.
+
+## 7.4. 액션 서버와 클라이언트 노드 작성 및 실행
+
+[액션](http://wiki.ros.org/actionlib)은 토픽, 서비스와 달리 비동기, 양방향, 요청 처리 후 응답까지 오랜 시간이 걸리고 중간 결괏값이 필요한 경우의 더 복잡한 프로그래밍을 할 때 사용한다. 여기서는 ROS Wiki에 소개된 [actionlib 예제](http://wiki.ros.org/actionlib_tutorials/Tutorials)를 통해 사용법을 알아본다.
+
+### 7.4.1. 패키지 생성
+
+ros_tutorials_action 패키지를 생성한다. 해당 패키지는 message_generation, std_msgs, actionlib_msgs, actionlib, roscpp 패키지를 의존하므로 해당 패키지 의존성 옵션을 달아준다.
+
+```
+cd ~/catkin_ws/src
+catkin_create_pkg ros_tutorials_action message_generation std_msgs actionlib_msgs actionlib roscpp
+```
+
+### 7.4.2. 패키지 설정 파일(package.xml) 수정
+
+*ros_tutorials_action/package.xml*
+
+```
+<?xml version="1.0"?>
+<package format="2">
+  <name>ros_tutorials_action</name>
+  <version>0.0.0</version>
+  <description>The ros_tutorials_action package</description>
+
+  <maintainer email="jungsoeko@gmail.com">ojs</maintainer>
+
+  <license>Apache License 2.0</license>
+  <author email="jungsoeko@gmail.com">ojs</author>
+  <maintainer email="jungsoeko@gmail.com">ojs</maintainer>
+  <url type="bugtracker">https://github.com/jungsoek/rosstudy/issues</url>
+  <url type="repository">https://github.com/jungsoek/rosstudy/ros_tutorial</url>
+  <url type="website">http://www.robotis.com</url>
+  
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>roscpp</build_depend>
+  <build_depend>actionlib</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
+
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>actionlib</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>actionlib_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <export></export>
+</package>
+```
+
+### 7.4.3. 빌드 설정 파일(CMakeLists.txt) 수정
+
+앞서 설명한 ros_tutorials_topic, ros_tutorials_service 노드의 빌드 설정 파일과 다른 점은 각각 msg 및 srv 파일을 추가하였다면 이번 ros_tutorials_action 패키지는 액션 파일(*.action)이 추가되었다는 것이다. 또 이를 사용하는 예제 노드로 새로운 액션 서버 노드, 액션 클라이언트 노드도 추가하였다. 더불어서 여기서는 ROS 외의 Boost라는 라이브러리를 이용하기에 별도의 의존성 옵션도 추가한다.
+
+*ros_tutorials_action/CMakeLists.txt*
+
+```
+cmake_minimum_required(VERSION 3.0.2)
+project(ros_tutorials_action)
+
+find_package(catkin REQUIRED COMPONENTS
+  actionlib
+  actionlib_msgs
+  message_generation
+  roscpp
+  std_msgs
+)
+
+find_package(Boost REQUIRED COMPONENTS system)
+
+add_action_files(
+  FILES
+    Fibonacci.action
+)
+
+generate_messages(
+  DEPENDENCIES
+    actionlib_msgs
+    std_msgs
+)
+
+catkin_package(
+  LIBRARIES 
+    ros_tutorials_action
+  CATKIN_DEPENDS 
+    actionlib 
+    actionlib_msgs 
+    message_generation 
+    roscpp 
+    std_msgs
+    DEPENDS Boost
+)
+
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+)
+
+add_executable(action_server src/action_server.cpp)
+add_dependencies(
+  action_server
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(
+  action_server
+  ${catkin_LIBRARIES}
+)
+
+add_executable(action_client src/action_client.cpp)
+add_dependencies(
+  action_client
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(
+  action_client
+  ${catkin_LIBRARIES}
+)
+```
+
+### 7.4.4. 액션 파일 작성
+
+CMakeLists.txt 파일에 다음과 같은 옵션을 넣었다.
+
+```
+add_action_files(
+  FILES
+    Fibonacci.action
+)
+```
+
+이는 이번 노드에서 사용할 액션 파일인 Fibonacci.action을 빌드할 때 포함하라는 빌드 옵션이다. action 디렉터리를 생성 후 Fibonacci.action 파일을 생성 및 작성한다.
+
+```
+roscd ros_tutorials_action
+mkdir action
+cd action
+touch Fibonacci.action
+```
+
+액션 파일은 3개의 하이픈(---)이 구분자 역할로 2군데 사용되어 첫 번째가 goal 메시지, 두 번째가 result 메시지, 세 번째가 feedback 메시지로 사용된다. 가장 큰 차이점은 goal 메시지와 result 메시지의 관계는 위에서 언급한 srv 파일과 마찬가지이지만 feedback 메시지는 지정된 프로세스가 수행되면서 중간 결괏값 전송 목적으로 이용한다는 것이다.
+
+*Fibonacci.action*
+
+```
+# goal definition
+int32 order
+---
+
+# result definition
+int32[] sequence
+---
+
+# feedback
+int32[] sequence
+```
+
+> ※ cf) : 액션의 기본 5가지 메시지
+>
+> 액션은 액션 파일에서 확인해 볼 수 있는 목표(goal), 결과(result), 피드백(feedback) 이외에도 기본적으로 취소(cancel)와 상태(status)라는 두 가지의 메시지를 더 이용한다. 취소(cancel) 메시지는 액션이 실행 중일때 액션 클라이언트 및 별도의 노드에서 액션 실행을 도중에 취소할 수 있는 메시지로 actionlib_msgs/GoalID를 이용한다. 상태(status) 메시지는 [PENDING, ACTIVE, PREEMPTED, SUCCEDED](https://docs.ros.org/noetic/api/actionlib_msgs/html/msg/GoalStatus.html) 등의 [상태 전이](http://wiki.ros.org/actionlib/DetailedDescription)에 따라 현재 액션의 상태를 확인할 수 있다.
+
+### 7.4.5. 액션 서버 노드 작성
+
+CMakeLists.txt 파일에 다음과 같은 실행 파일을 생성하는 옵션을 넣었다.
+
+```
+add_executable(action_server src/action_server.cpp)
+```
+
+즉 action_server.cpp 파일을 빌드해 action_server 실행 파일을 만든다는 것이다. 다음 순서대로 액션 서버 노드 기능을 수행하는 프로그램을 작성한다.
+
+```
+roscd ros_tutorials_action/src
+touch action_server.cpp
+```
+
+*ros_tutorials_action/src/action_server.cpp*
+
+```cpp
+#include <ros/ros.h>    // ROS 기본 헤더 파일
+#include <actionlib/server/simple_action_server.h>  // action 라이브러리 헤더 파일
+#include <ros_tutorials_action/FibonacciAction.h>   // FibonacciAction 액션 파일 헤더(빌드 후 자동 생성됨)
+
+class FibonacciAction {
+    protected:
+        // 노드 핸들 선언
+        ros::NodeHandle nh_;
+
+        // 액션 서버 선언
+        actionlib::SimpleActionServer<ros_tutorials_action::FibonacciAction> as_;
+
+        // 액션명으로 사용
+        std::string action_name_;
+
+        // 퍼블리시를 위한 액션 피드백 및 결과 선언
+        ros_tutorials_action::FibonacciFeedback feedback_;
+        ros_tutorials_action::FibonacciResult result_;
+
+    public:
+        // 액션 서버 초기화(노드 핸들, 액션명, 액션 콜백 함수)
+        FibonacciAction(std::string name) :
+            as_(nh_, name, boost::bind(&FibonacciAction::executeCB, this, _1), false),
+            action_name_(name) {
+                as_.start();
+            }
+
+        ~FibonacciAction(void) {
+
+        }
+
+        // 액션 목표(goal) 메시지를 받아 지정된 액션(여기서는 피보나치 수열)을 수행하는 함수
+        void executeCB(const ros_tutorials_action::FibonacciGoalConstPtr &goal) {
+            ros::Rate r(1);     // 루프 주기 : 1Hz
+            bool success = true;    // 액션의 성공, 실패를 저장하는 변수로 사용
+
+            // 피보나치 수열 초기화 설정, 피드백의 첫 번째(0)와 두 번째 메시지(1)도 추가
+            feedback_.sequence.clear();
+            feedback_.sequence.push_back(0);
+            feedback_.sequence.push_back(1);
+
+            // 액션의 이름, 목표, 피보나치 수열의 초기 두 개의 값을 사용자에게 알림
+            ROS_INFO(
+                "%s: Executing, creating fibonacci sequence of order %i with seeds %i",
+                action_name_.c_str(),
+                goal->order,
+                feedback_.sequence[0],
+                feedback_.sequence[1]
+            );
+
+            // 액션 내용
+            for(int i = 1; i <= goal->order; i++) {
+                // 액션 클라이언트로부터 액션 취소를 확인
+                if (as_.isPreemptRequested() || !ros::ok()) {
+                    ROS_INFO(
+                        "%s : Preempted",
+                        action_name_.c_str()
+                    );
+                    as_.setPreempted();
+                    success = false;
+                    break;
+                }
+
+                // 액션 취소가 없거나 액션 목표치에 도달하기 전까지
+                // 피드백에 피보나치 현재 수에 이전 수를 더한 값을 저장한다.
+                feedback_.sequence.push_back(feedback_.sequence[i] + feedback_.sequence[i-1]);
+                as_.publishFeedback(feedback_);     // 피드백을 퍼블리시한다.
+                r.sleep();      // 위에서 정한 루프 주기에 따라 슬립에 들어간다.
+            }
+
+            // 액션 목표치를 달성했을 경우, 현재의 피보나치 수열을 결괏값으로 전송한다.
+            if(success) {
+                result_.sequence = feedback_.sequence;
+                ROS_INFO("%s : Succeeded", action_name_.c_str());
+                as_.setSucceeded(result_);
+            }
+        }
+};
+
+int main(int argc, char** argv) {   // 노드 메인 함수
+    ros::init(argc, argv, "action_server");  // 노드명 초기화
+    FibonacciAction fibonacci("ros_tutorial_action");   // Fibonacci 선언(액션명 : ros_tutorial_action)
+    ros::spin();
+    return 0;
+}
+```
+
+### 7.4.6. 액션 클라이언트 노드 작성
+
+액션 서버 노드와 마찬가지로 클라이언트 노드에 해당되는 내용도 다음과 같이 CMakeLists.txt 파일에 옵션으로 넣어두었다.
+
+```
+add_executable(action_client src/action_client.cpp)
+```
+
+즉 action_client.cpp라는 파일에 빌드해 action_client 실행 파일을 만든다는 것이다. 다음 순서대로 액션 클라이언트 노드 기능을 수행하는 프로그램을 작성한다.
+
+```
+roscd ros_tutorial_action/src
+touch action_client.cpp
+```
+
+*ros_tutorials_action/src/action_client.cpp*
+
+```cpp
+#include <ros/ros.h>    // ROS 기본 헤더 파일
+#include <actionlib/client/simple_action_client.h>  // action 라이브러리 헤더 파일
+#include <actionlib/client/terminal_state.h>    // 액션 목표 상태 헤더 파일
+#include <ros_tutorials_action/FibonacciAction.h>   // FibonacciAction 액션 파일 헤더(빌드 후 자동 생성됨)
+
+int main(int argc, char **argv) {
+    ros::init(argc, argv, "action_client");
+
+    // 액션 클라이언트 선언
+    actionlib::SimpleActionClient<ros_tutorials_action::FibonacciAction> ac("ros_tutorial_action", true);
+
+    ROS_INFO("Waiting for action server to start.");
+    ac.waitForServer();
+
+    ROS_INFO("Action server started, sending goal.");
+    ros_tutorials_action::FibonacciGoal goal;   // 액션 목표 선언
+    goal.order = 20;    // 액션 목표 지정(피보나치 수열 20번 진행)
+    ac.sendGoal(goal);  // 액션 목표 전송
+
+    // 액션 목표 달성 제한 시간 설정(여기서는 30초로 설정)
+    bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
+
+    // 액션 목표 달성 제한 시간내에 액션 결괏값이 수신 되었을 때
+    if(finished_before_timeout) {
+        // 액션 목표 상태 값을 받아 화면에 표시
+        actionlib::SimpleClientGoalState state = ac.getState();
+        ROS_INFO("Action finished: %s", state.toString().c_str());
+    } else {
+        ROS_INFO("Action did not finish before the time out."); // 제한 시간을 넘긴 경우
+    }
+
+    // exit
+    return 0;
+}
+```
+
+### 7.4.7. 노드 빌드
+
+```
+cd ~/catkin_ws && catkin_make
+```
+
+### 7.4.8. 액션 서버 실행
+
+action_server 노드를 실행한다.
+
+```
+rosrun ros_tutorials_action action_server
+```
+
+액션에서는 요청과 응답에 해당하는 액션 목표(goal)와 결과(result)가 있다는 점에서 서비스와 비슷하지만 추가로 각 과정에서의 중간값에 해당하는 피드백(feedback) 메시지가 있다. 이는 서비스와 비슷하지만 실제 메시지의 통신 방식에 대해서는 토픽과 매우 유사하다. 그래서 다음과 같이  rqt_graph와 rostopic list를 통해 현재 액션 메시지의 사용을 확인할 수 있다.
+
+```
+$ rostopic list
+/ros_tutorial_action/cancel
+/ros_tutorial_action/feedback
+/ros_tutorial_action/goal
+/ros_tutorial_action/result
+/ros_tutorial_action/status
+/rosout
+/rosout_agg
+/statistics
+```
+
+각 메시지의 자세한 정보를 원할 경우, rostopic list에 -v 옵션을 붙여준다. 그러면 다음과 같이 퍼블리시 및 서브스크라이브되는 토픽을 따로 분리해 보여준다.
+
+```
+$ rostopic list -v
+
+Published topics:
+ * /rosout_agg [rosgraph_msgs/Log] 1 publisher
+ * /rosout [rosgraph_msgs/Log] 3 publishers
+ * /ros_tutorial_action/result [ros_tutorials_action/FibonacciActionResult] 1 publisher
+ * /ros_tutorial_action/feedback [ros_tutorials_action/FibonacciActionFeedback] 1 publisher
+ * /ros_tutorial_action/status [actionlib_msgs/GoalStatusArray] 1 publisher
+
+Subscribed topics:
+ * /rosout [rosgraph_msgs/Log] 1 subscriber
+ * /statistics [rosgraph_msgs/TopicStatistics] 1 subscriber
+ * /ros_tutorial_action/goal [ros_tutorials_action/FibonacciActionGoal] 1 subscriber
+ * /ros_tutorial_action/cancel [actionlib_msgs/GoalID] 1 subscriber
+```
+
+action_client를 실행 후, rqt_graph로 시각화된 정보를 확인한다. 여기서 액션 메시지는 ros_tutorial_action/action_topics이라는 이름으로 묶어서 표현하게 되는데 메뉴 중에서 Actions를 해제하면 액션에 사용되는 총 5개의 메시지를 모두 도식화하여 볼 수 있다. 여기서 더불어 알 수 있는 것은 액션은 기본적으로 5개의 토픽과 이 토픽을 퍼블리시 및 서브스크라이브하는 노드로 구성되어 있다는 것을 확인할 수 있다. 
+
+```
+rosrun ros_tutorials_action action_client
+```
+
+
+
+![image-20240501115257957](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240501115257957.png)
+
+![image-20240501115355221](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240501115355221.png)
+
+### 7.4.9. 액션 클라이언트 실행
+
+액션 클라이언트 시작과 동시에 액션 목표 메시지로 20을 설정하게 되어 있다.
+
+```
+rosrun ros_tutorials_action action_client
+```
+
+이 목푯값 설정으로 액션 서버는 다음과 같이 피보나치수열을 시작하게 된다. 자세한 중간값이나 결괏값을 알아보려면 'rostopic echo /ros_tutorial_action/feedback'과 같이 rostopic 명령어를 사용하면 된다.
+
+```
+$ rosrun ros_tutorials_action action_server
+[ INFO] [1714532373.410073290]: ros_tutorial_action: Executing, creating fibonacci sequence of order 20 with seeds 0
+[ INFO] [1714532393.410167048]: ros_tutorial_action : Succeeded
+```
+
+```
+$ rosrun ros_tutorials_action action_client
+[ INFO] [1714532373.116057169]: Waiting for action server to start.
+[ INFO] [1714532373.408828631]: Action server started, sending goal.
+[ INFO] [1714532393.410903440]: Action finished: SUCCEEDED
+```
+
+```
+$ rostopic echo /ros_tutorial_action/feedback
+header: 
+  seq: 3
+  stamp: 
+    secs: 1714532376
+    nsecs: 410108809
+  frame_id: ''
+status: 
+  goal_id: 
+    stamp: 
+      secs: 1714532373
+      nsecs: 408946904
+    id: "/action_client-1-1714532373.408946904"
+  status: 1
+  text: "This goal has been accepted by the simple action server"
+feedback: 
+  sequence: [0, 1, 1, 2, 3, 5]
+---
+```
+
+## 7.5. 파라미터 사용법
+
+### 7.5.1. 파라미터를 활용한 노드 작성
+
+앞에서 작성하였던 서비스 서버와 클라이언트 노드에서 service_server.cpp 소스를 수정하여 서비스 요청으로 입력된 a와 b를 단순 덧셈하는 것이 아니라, 사칙연산을 할 수 있도록 파라미터를 활용해 볼 것이다. 다음과 같이 service_server.cpp 소스를 수정한다.
+
+*ros_tutorials_service/src/service_server.cpp*
+
+```cpp
+// ROS 기본 헤더 파일
+#include "ros/ros.h"
+// SrvTutorial 서비스 파일 헤더(빌드 후 자동 생성됨)
+#include "ros_tutorials_service/SrvTutorial.h"
+
+#define PLUS                1
+#define MINUS               2
+#define MULTIPLICATION      3
+#define DIVISION            4
+
+int g_operator = PLUS;
+
+// 서비스 요청이 있을 경우, 아래의 처리를 수행한다.
+// 서비스 요청은 req, 서비스 응답은 res로 설정하였다.
+bool calculation(
+    ros_tutorials_service::SrvTutorial::Request &req,
+    ros_tutorials_service::SrvTutorial::Response &res
+) {
+    // 서비스 요청시 받은 a와 b값을 파라미터값에 따라 연산자를 달리한다.
+    // 계산한 후 서비스 응답값에 저장한다.
+    switch(g_operator) {
+        case PLUS:
+            res.result = req.a + req.b; break;
+        case MINUS:
+            res.result = req.a - req.b; break;
+        case MULTIPLICATION:
+            res.result = req.a * req.b; break;
+        case DIVISION:
+            if(req.b == 0) {
+                ROS_INFO("0으로 나눌 수 없음");
+                res.result = 0;
+            } else {
+                res.result = req.a / req.b; break;
+            }
+        default:
+            res.result = req.a + req.b; break;
+    }
+    // 서비스 요청에 사용된 a, b값의 표시 및 서비스 응답에 해당하는 result값을 출력한다.
+    ROS_INFO("request: x=%ld, y=%ld", (long int)req.a, (long int) req.b);
+    ROS_INFO("sending back response: [%ld]", (long int)res.result);
+    return true;
+}
+
+int main(int argc, char **argv) {  // 노드 메인 함수
+    ros::init(argc, argv, "service_server");    // 노드명 초기화
+    ros::NodeHandle nh;    // 노드 핸들 선언
+    nh.setParam("calculation_method", PLUS);    // 파라미터 초기 설정
+    // 서비스 서버 선언,
+    // ros_tutorials_service 패키지의 SrvTutorial 서비스 파일을 이용한
+    // 서비스 서버 ros_tutorials_service_server를 선언한다.
+    // 서비스명은 ros_tutorial_srv이며 서비스 요청이 있을 때,
+    // calculation라는 함수를 실행하라는 설정이다.
+    ros::ServiceClient ros_tutorial_service_client = nh.serviceClient<ros_tutorials_service::SrvTutorial>("ros_tutorial_srv", calculation);
+
+    ROS_INFO("ready srv server!");
+    ros::Rate r(10);    // 10Hz
+
+    while(1) {
+        // 연산자를 파라미터로부터 받은 값으로 변경한다.
+        nh.getParam("calculation_method", g_operator);
+        ros::spinOnce();    // 콜백함수 처리 루틴
+        r.sleep();  // 루틴 반복을 위한 sleep 처리
+    }
+    return 0;
+}
+```
+
+'setParam', 'getParam'이 파라미터 사용에서 가장 중요하다.
+
+### 7.5.2. 파라미터 설정
+
+다음 소스는 calculation_method 이름의 파라미터를 PLUS 값으로 설정한다는 것이다. PLUS는 앞의 소스에서 1로 정의하였으므로 calculation_method 파라미터는 1이 되고, 서비스 요청으로 받은 값을 덧셈하여 서비스 응답을 한다.
+
+```cpp
+nh.setParam("calculation_method", PLUS); 
+```
+
+참고로 파라미터는 integers, floats, boolean, string, dictionaries, list 등으로 설정할 수 있다. 간단한 예를 들자면,
+
+* 1 : integets
+* 1.0 : floats
+* "parameter" : string
+* true : boolean,
+* [1, 2, 3] integers의 list
+* a : b, c : d는 dictionaries
+
+이다.
+
+### 7.5.3. 파라미터 읽기
+
+calculation_method 파라미터를 불러와서 g_oparator의 값으로 설정하는 부분이다. 이에 앞에 소스에서 g_operator는 0.1초마다 파라미터의 값을 확인하여 서비스 요청으로 받은 값을 사칙연산 중 어떤 계산을 하여 처리할지 결정하게 된다.
+
+```
+nh.getParam("calculation_method", g_operator);
+```
+
+### 7.5.4. 노드 빌드 및 실행
+
+```
+cd ~/catkin_ws && catkin_make
+```
+
+service_server 노드 실행
+
+```
+rosrun ros_tutorials_service service_server
+```
+
+### 7.5.5. 파라미터 목록 보기
+
+'rosparam list' 명령어로 현재 ROS 네트워크에서 사용되는 파라미터 목록 확인. 출력된 목록 중 /calculation_method가 앞에 코드에서 사용한 파라미터이다.
+
+```
+$ rosparam list
+/calculation_method
+/rosdistro
+/roslaunch/uris/host_localhost__42401
+/rosversion
+/run_id
+```
+
+### 7.5.6. 파라미터 사용 예
+
+다음 명령어를 통해 파라미터를 설정한 후에 같은 서비스를 요청해보면서 그 결괏값이 달라짐을 확인한다.
+
+```
+rosservice call /ros_tutorial_srv 10 5
+result: 15
+rosparam set /calculation_method 2
+rosservice call /ros_tutorial_srv 10 5
+result: 5
+```
+
+## 7.6. roslaunch 사용법
+
+rosrun이 하나의 노드를 실행하는 명령어라면 roslaunch는 하나 이상의 정해진 노드를 실행시킬 수 있다. 그 밖의 기능으로 노드를 싫애할 때 패키지의 파라미터나 노드 이름 변경, 노드 네임스페이스 설정, ROS_ROOT 및 ROS_PACKAGE_PATH 설정, 환경변수 변경 등의 옵션을 붙일 수 있는 ROS 명령어다.
+
+roslaunch는 *.launch 파일을 사용해서 실행 노드를 설정하는데 이는 XML 기반이며, 태그별 옵션을 제공한다. 실행 명령어는 'roslaunch [패키지명] [roslaunch 파일명]'이다.
+
+### 7.6.1. roslaunch의 활용
+
+roslaunch의 활용 방법을 알아보기 위해 이전에 작성한 topic_publisher와 topic_subscriber 노드의 이름을 바꿔 실행한다. 퍼블리셔 노드와 서브스크라이버 노드를 각각 두 개씩 구동하여 서로 별도의 메시지 통신을 해본다.
+
+우선, *.launch 파일을 작성한다. roslaunch에 사용되는 파일은 *.launch 파일명을 가지며 해당 패키지 폴더에 launch 폴더를 생성하고 그 폴더에 넣는다. 다음 명렁어대로 폴더를 생성하고 union.launch라는 새 파일을 생성한다.
+
+```
+roscd ros_tutorials_topic
+mkdir launch
+cd launch
+touch union.launch
+```
+
+*ros_tutorials_topic/launch/union.launch*
+
+```xml
+<launch>
+    <node pkg="ros_tutorials_topic" type="topic_publisher" name="topic_publisher1"/>
+    <node pkg="ros_tutorials_topic" type="topic_subscriber" name="topic_subscriber1"/>
+    <node pkg="ros_tutorials_topic" type="topic_publisher" name="topic_publisher2"/>
+    <node pkg="ros_tutorials_topic" type="topic_subscriber" name="topic_subscriber2"/>  
+</launch>
+```
+
+<launch> 태그 안에는 roslaunch 명령어로 노드를 실행할 때 필요한 태그들이 기술된다. <node>는 roslaunch로 실행할 노드를 기술하게 된다. 옵션으로는 pkg, type, name이 있다.
+
+* pkg 
+
+  패키지 이름
+
+* type
+
+  실제 실행할 노드의 이름(노드명)
+
+* name
+
+  위 type에 해당하는 노드가 실행될 때 붙여지는 이름(실행명), 일반적으로는 type과 같게 설정하지만 필요에 따라 실행할 때 이름을 변경하도록 설정할 수 있다.
+
+roslaunch 파일을 작성하였다면 union.launch를 실행한다. 참고로 roslaunch 명령어로 여러 개의 노드가 실행될 때는 실행되는 노드들의 출력(info, error 등)이 터미널 스크린에 표시되지 않아 디버깅하기 어렵게 된다. 이때에 --screen 옵션을 추가해주면 해당 터미널에 실행되는 모든 노드들의 출력들이 터미널 스크린에 표시된다.
+
+```
+roslaunch ros_tutorials_topic union.launch --screen
+```
+
+```
+$ roslaunch ros_tutorials_topic union.launch --screen
+... logging to /home/oem/.ros/log/68cf9e30-071f-11ef-b0c0-07ae20657235/roslaunch-user-241379.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+
+
+started roslaunch server http://localhost:36983/
+
+SUMMARY
+========
+
+PARAMETERS
+ * /rosdistro: noetic
+ * /rosversion: 1.16.0
+
+NODES
+  /
+    topic_publisher1 (ros_tutorials_topic/topic_publisher)
+    topic_publisher2 (ros_tutorials_topic/topic_publisher)
+    topic_subscriber1 (ros_tutorials_topic/topic_subscriber)
+    topic_subscriber2 (ros_tutorials_topic/topic_subscriber)
+
+ROS_MASTER_URI=http://localhost:11311
+
+process[topic_publisher1-1]: started with pid [241400]
+process[topic_subscriber1-2]: started with pid [241401]
+process[topic_publisher2-3]: started with pid [241402]
+[ INFO] [1714611272.829008105]: send msg = 1714611272
+[ INFO] [1714611272.829929562]: send msg = 828943436
+[ INFO] [1714611272.829976322]: send msg = 0
+process[topic_subscriber2-4]: started with pid [241408]
+[ INFO] [1714611272.842144172]: send msg = 1714611272
+[ INFO] [1714611272.843167463]: send msg = 842079963
+[ INFO] [1714611272.843186332]: send msg = 0
+
+...
+
+```
+
+결과적으로 topic_publisher 노드가 topic_publisher1과 topic_publisher2로 이름이 바뀌어 두 개의 노드가 실행되었으며, topic_subscriber 노드도 topic_subscriber1과 topic_subscriber2로 이름이 바뀌어 실행되었다.
+
+문제는 "퍼블리셔 노드와 서브스크라이버 노드를 각각 두 개씩 구동하여 서로 별도의 메시지를 통신하게 한다"는 처음 의도와는 다르게 rqt_graph를 통해 보면 서로의 메시지를 모두 서브스크라이브하고 있다는 것이다.
+
+![image-20240502102535550](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240502102535550.png)
+
+이는 단순히 실행되는 노드의 이름만을 변경해주었을 뿐 사용되는 메시지의 이름을 바꿔주지 않았기 때문이다. 이 문제를 다른 roslaunch 네임스페이스 태그를 사용하여 해결해본다.
+
+앞서 작성했던 union.launch 파일을 다음처럼 수정한다.
+
+*ros_tutorials_topic/launch/union.launch*
+
+```xml
+<launch>
+    <group ns="ns1">
+        <node pkg="ros_tutorials_topic" type="topic_publisher" name="topic_publisher1"/>
+        <node pkg="ros_tutorials_topic" type="topic_subscriber" name="topic_subscriber1"/>
+    </group>
+    <group ns="ns2">
+        <node pkg="ros_tutorials_topic" type="topic_publisher" name="topic_publisher2"/>
+        <node pkg="ros_tutorials_topic" type="topic_subscriber" name="topic_subscriber2"/> 
+    </group>
+</launch>
+```
+
+<group>은 지정된 노드를 그룹으로 묶는 태그이다. 옵션으로는 ns가 있다. 이는 네임스페이스(namespace)로서 그룹의 이름을 지칭하며, 그룹에 속한 노드의 이름과 메시지 등도 모두 ns로 지정한 이름에 포함된다.
+
+rqt_graph로 노드 간 연결과 메시지 송수신 상태를 확인한다. 이번에는 처음에 의도한 대로 이루어졌음을 확인할 수 있다.
+
+![image-20240502103027856](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240502103027856.png)
+
+### 7.6.2. Launch 태그
+
+[launch 파일에서 XML](http://wiki.ros.org/roslaunch/XML)을 어떻게 작성하느냐에 따라 다양하게 응용할 수 있다. launch에서 사용되는 태그들은 다음과 같다.
+
+* <launch>
+
+  roslaunch 구문의 시작과 끝을 가리킨다.
+
+* <node>
+
+  노드 실행에 대한 태그이다. 패키지, 노드명, 실행명을 변경할 수 있다.
+
+* <machine>
+
+  노드를 실행하는 PC의 이름, address, ros-root, ros-package-path 등을 설정할 수 있다.
+
+* <include>
+
+  다른 패키지나 같은 패키지에 속해 있는 다른 launch를 불러와 하나의 launch 파일처럼 실행할 수 있다.
+
+* <remap>
+
+  노드 이름, 토픽 이름 등의 노드에서 사용 중인 ROS 변수의 이름을 변경할 수 있다.
+
+* <env>
+
+  경로, IP 등의 환경변수를 설정한다(거의 안쓰임)
+
+* <param>
+
+  파라미터의 이름, 타입, 값 등을 설정한다.
+
+* <rosparam>
+
+  rosparam 명령어처럼 load, dump, delete 등 파라미터 정보를 확인 및 수정한다.
+
+* <group>
+
+  실행되는 노드를 그룹화할 때 사용한다.
+
+* <test>
+
+  노드를 테스트할 때 사용한다. <node>와 비슷하지만 테스트에 사용할 수 있는 옵션들이 추가되어 있다.
+
+* <arg>
+
+  launch 파일 내에 변수를 정의할 수 있어서 다음과 같이 파라미터를 변경시킬 수도 있다.
+
+이중 파라미터 설정인 <param>과 launch 파일 내의 변수인 <arg>을 다음 예제와 같이 이용하면 launch 파일을 실행할 때 외부에서 내부 변수를 변경할 수 있어서 노드내에서 사용하는 파라미터까지도 실행과 동시에 변경이 가능해진다.
+
+```xml
+<launch>
+    <arg name="update_period" default="10" />
+    <param name="timing" value="$(arg update_period)" />
+</launch>
+```
+
+```
+roslaunch my_package my_package.launch update_period:=30
+```
+
+# 8장. 로봇, 센서, 모터
+
+## 8.1. 로봇 패키지
+
+ROS는 여기서 응용 소프트웨어의 범주에 해당하는데 그 지원 범위에 따라 로봇에 특화된 경우로 봇 패키지([1](http://robots.ros.org/), [2](http://wiki.ros.org/Robots)), 센서에 특화된 경우 [센서 패키지](http://wiki.ros.org/Sensors), 구동부에 특화된 경우 [모터](http://wiki.ros.org/Motor%20Controller%20Drivers)로 분류된다. 이 패키지들은 윌로우 게러지(Willow Garage)나 로보티즈(ROBOTIS), 유진로봇(Yujin Robot), 클리어패스(Clearpath) 같은 로봇 기업이 제공하기도 하고, 오픈 로보틱스(구 오픈 재단인 OSRF), 로봇 공학 전공의 대학 연구실, 개인 개발자들이 자체 개발한 ROS 로봇, 센서, 모터 관련 패키지를 개발하여 배포하기도 한다.
+
+로봇의 종류는 거의 모든 분야에서 사용되는 로봇들이 등록되어 있다. 공개된 로봇 패키지는 http://robots.ros.org/에서 확인할 수 있다.
+
+만약, 사용하려는 로봇 패키지가 ROS 공식 패키지라면 설치 방법은 매우 간단한다. 우선, 자신이 사용하려는 로봇 패키지가 공개되었는지 ROS Wiki(http://rosbots.ros.org/)에서 확인하거나 다음 명령어로 전체 ROS 패키지 리스트에서 찾아볼 수 있다.
+
+```
+apt-cache search ros-noetic
+```
+
+리눅스의 GUI 패키지 매니저 프로그램인 synaptic을 구동하여 'ros-noetic' 단어로 검색하는 방법도 있다. 사용하려는 로봇 패키지가 공식 패키지라면 설치는 간단하다. 
+
+다음은 PR2 패키지를 설치하는 명령어이다.
+
+```
+sudo apt-get install ros-noetic-pr2-desktop
+```
+
+다음은 터틀봇3 패키지를 설치하는 명령어이다.
+
+```
+sudo apt-get install ros-noetic-turtlebot3 ros-noetic-turtlebot3-msgs ros-noetic-turtlebot3-simulations
+```
+
+```
+cd ~/catkin_ws/src
+hg clone http://code.google.com/amor-ros-pkg
+```
+
+이처럼 로봇 패키지는 공개된 ROS 공식 패키지를 설치하던가, 위키에서 안내하는 설치 방법에 따라 공개 소스 리포지토리로부터 내려받은 다음, 빌드 과정을 거치고 사용하면 된다. 패키지에 포함된 각 노드의 사용 설명은 해당 로봇 패키지의 설명을 확인한다. 로봇 패키지에는 기본적으로 로봇 구동 드라이브 노드, 장착된 센서 데이터의 취득 및 활용 노드, 원격 조정 노드가 포함되어 있고, 관절형 로봇이면 역기구학 노드, 모바일 로봇이면 내비게이션 노드 등이 포함되어 있다.
+
+## 8.2. 센서 패키지
+
+### 8.2.1. 센서의 종류
+
+단순히 마이크로프로세서에서 ADC로 값을 받을 수 있는 센서는 한계가 있다. 그중 LDS, 3D 센서, 카메라 등은 데이터양이 많고, 처리에 상당한 사양을 요구하기 때문에 마이크로프로세서로는 무리이고, PC를 이용해야 한다. 이에 따라 드라이버도 필요하고 OpenNI, OpenCV 등 포인트 클라우드 처리, 영상 처리 등에 필요한 라이브러리도 필요하다.
+
+### 8.2.2. 센서 패키지의 분류
+
+[ROS 센서 위키 페이지](http://wiki.ros.org/Sensors)에는 여러 센서 패키지가 공개되어 있다. 
+
+* 1D Range Finders
+
+  저가의 로봇을 만들 때 사용할만한 적외선 방식의 직선거리 센서들이다.
+
+* 2D Range Finders
+
+  2차 평면상의 거리를 계측할 수 있는 센서로 주로 내비게이션에 많이 사용되는 센서들이다.
+
+* 3D Sensors
+
+  Intel 사의 RealSense, MS 사의 Kinect, ASUS 사의 Xtion과 같은 3차원 거리 측정에 사용되는 센서들이다.
+
+* Audio/Speech Recognition
+
+  현재 음성인식 관련 부분은 매우 적지만, 지속해서 추가될 것으로 보인다.
+
+* Cameras
+
+  물체 인식, 얼굴 인식, 문자 판독 등에 많이 사용되는 카메라의 드라이버, 각종 응용 패키지들을 모아 두었다.
+
+* Sensor Interfaces
+
+  USB 및 웹 프로토콜을 지원하는 센서는 매우 적다. 아직까지도 많은은 센서들은 마이크로프로세서에서 정보를 쉽게 얻을 수 있는 센서가 많다. 이러한 센서는 마이크로프로세서의 UART 및 미니 PC 계열에서 ROS와의 연결을 지원한다.
+
+## 8.3. 카메라
+
+USB 카메라를 구동하고, 데이터를 확인하는 작업을 실습해 본다.
+
+> ※ cf) : 카메라의 인터페이스
+>
+> 카메라의 인터페이스는 USB만 있는 것은 아니다. 웹에서 연결하여 사용할 수 있는 네트워킹 기능을 포함한 카메라도 있다. 흔히 LAN이나 WIFI에 연결하여 영상 데이터를 웹으로 스트림하게 된다. 이러한 카메라는 웹캠이라고 불러야 한다. 그리고 고속 전송을 위한 FireWire(IEEE 1394 규약)을 이용하는 카메라도 있으며, 주로 고속 영상을 전송받아야 하는 연구 목적으로 사용되고 있다. FireWire 규격은 일반적인 보드에서는 쉽게 찾아볼 수 없으나 애플에서 개발하였기에 대부분 애플 제품에 적용되어 있다.
+
+### 8.3.1. USB 카메라 관련 패키지
+
+ROS는 USB 카메라와 관련된 다양한 패키지를 제공한다. 자세한 설명은 ROS 위키의 '센서/카메라' 카테고리(http://wiki.ros.org/Sensors/Cameras)에서 찾아볼 수 있다. 간략하게 몇 가지 패키지만 알아본다.
+
+* libuvc-camera
+
+  UVC 표준을 사용하는 카메라들을 사용하기 위한 인터페이스 패키지이다.
+
+* usb-cam
+
+  Bosch에서 사용하는 매우 간단한 카메라 드라이버이다.
+
+* freenect-camera, openni-camera, openni2-camera
+
+  3가지 패키지 모두 카메라라는 명칭이 붙어 있지만 모두 Kinect나 Xtion과 같은 심도 카메라를 위한 패키지들이다. 이 센서들 역시 컬러 카메라를 포함하고 있기 때문에 RGB-D 카메라라고도 부른다. 이들의 컬러 이미지를 이용하려면 이 패키지들이 필요하다.
+
+* camera1394
+
+  IEEE 1394 규격인 FireWire를 이용하는 카메라를 위한 드라이버이다.
+
+* prosilica-camera
+
+  연구용으로 많이 사용되는 Point Grey Research 사의 Point Grey 카메라를 위한 드라이버다.
+
+* camera-calibration
+
+  James Bowman, Patrick Mihelich가 개발한 캐메라 캘리브레이션 관련 패키지로 OpenCV의 캘리브레이션 기능을 응용한 패키지이다. 많은 카메라 관련 패키지가 이 패키지를 요구한다.
+
+### 8.3.2. USB 카메라 테스트
+
+#### usb-cam 노드 실행
+
+```
+roscore
+```
+
+```
+rosrun usb_cam usb_cam_node
+```
+
+#### 토픽 메시지 확인
+
+다음과 같은 토픽 메시지를 보면 카메라 정보(/camera_info)와 이미지 정보(/image_raw)가 퍼블리시되고 있음을 확인할 수 있다.
+
+```
+$ rostopic list
+/rosout
+/rosout_agg
+/statistics
+/usb_cam/camera_info
+/usb_cam/image_raw
+/usb_cam/image_raw/compressed
+/usb_cam/image_raw/compressed/parameter_descriptions
+/usb_cam/image_raw/compressed/parameter_updates
+/usb_cam/image_raw/compressedDepth
+/usb_cam/image_raw/compressedDepth/parameter_descriptions
+/usb_cam/image_raw/compressedDepth/parameter_updates
+/usb_cam/image_raw/theora
+/usb_cam/image_raw/theora/parameter_descriptions
+/usb_cam/image_raw/theora/parameter_updates
+```
+
+### 8.3.3. 이미지 정보 확인
+
+시각화 도구인 image_view와 RViz를 이용하여 이미지 정보를 실제로 확인한다. 만약에 여기서 이미지가 보이지 않는다면 카메라 드라이버나 접속에 문제가 있는 것이므로 앞 절로 넘어가서 문제가 없는지 확인해본다.
+
+#### image_view 노드로 확인
+
+먼저, 이미지 정보를 확인할 수 있는 image_view 노드를 실행한다. 'image:=/image_raw' 옵션이 붙는데, 맨 뒤의 '/image_raw'는 앞에서 토픽 목록으로 확인한 토픽을 이미지로 보기위한 옵션이다. 이를 실행하면 카메라의 이미지가 작은 창에 표시된다.
+
+```
+rosrun image_view image_view image:=/usb_cam/image_raw
+```
+
+#### rqt_image_view 노드로 확인
+
+```
+rqt_image_view image:=/usb_cam/image_raw
+```
+
+#### RViz로 확인하기
+
+```
+rviz
+```
+
+RViz가 실행되면 Displays 옵션을 변경한다. RViz 왼쪽 밑에 [Add]를 클릭하고 [By display type] 탭에서 [Image]를 선택해 이미지 디스플레이를 불러온다.
+
+그 다음 [By topic] → /usb_cam → /image_raw → Image를 선택하고 OK 버튼을 누른다.
+
+### 8.3.4. 원격으로 이미지 전송
+
+로봇에 장착된 카메라의 이미지 정보를 원격지의 다른 컴퓨터에서 확인하는 방법에 대해 알아본다. 
+
+#### 카메라가 연결된 컴퓨터
+
+ROS 마스터는 어떤 컴퓨터든 상관없지만, 이번 예제에서는 카메라가 연결된 컴퓨터를 ROS 마스터로 하였다. 가장 먼저 해줘야 할 설정은 ROS_MASTER_URI와 ROS_HOSTNAME과 같은 네트워크 변수를 수정하는 것이다. 우선 문서편집 프로그램(vim, nano, gedit 등)을 사용하여 ~/.bachrc 파일을 수정한다.
+
+```
+export ROS_HOSTNAME=[카메라가 연결된 PC의 IP]
+export ROS_MASTER_URI=http:[카메라가 연결된 PC의 IP]//:11311
+
+[저장 후]
+
+$ source ~/.bashrc
+```
+
+그 다음 roscore를 구동하고, 또 다른 터미널 창에서 usb_cam_node 노드를 구동한다. 
+
+```
+roscore
+rosrun usb_cam usb_cam_node
+```
+
+#### 원격 컴퓨터
+
+원격 컴퓨터에서도 마찬가지로 bashrc 파일을 열어 ROS_MASTER_URI와 ROS_HOSTNAME 변수를 수정한다. 다음 설정처럼 ROS_MASTER_URI를 카메라가 연결된 컴퓨터의 IP로 설정하고, ROS_HOSTNAME 변수는 원격 컴퓨터의 IP로 수정한다. 그 다음 image_view만 구동한다.
+
+```
+export ROS_MASTER_URI=[카메라가 연결된 컴퓨터의 IP]:11311
+export ROS_HOSTNAME=[원격 컴퓨터의 IP]
+```
+
+```
+rosrun image_view image_view image:=/usb_cam/image_raw
+```
+
+### 8.3.5. 카메라 캘리브레이션
+
+usb_cam 노드를 실행하면 "[ WARN] [1714625046.304548509]: Camera calibration file /home/oem/.ros/camera_info/head_camera.yaml not found." 처럼 카메라 캘리브레이션과 관련된 경고가 나오는데, 단순히 카메라의 이미지를 확인하는 수준이라면 이는 무시해도 상관없다. 하지만 스테레오 카메라나 이미지를 가지고 거릿값을 측정한다든지 물체 인식 등의 영상을 처리할 때는 이야기가 다르다.
+
+카메라로부터 얻은 이미지 정보로부터 정확한 거리 정보를 얻으려면 카메라마다 다른 렌즈 특성, 렌즈와이미지 센서와 거리, 뒤틀린 각도 등의 정보가 필요하다. 왜냐하면, 카메라는 우리가 사는 3차원 세상을 2차원으로 투사한 영상 투사 장치이므로 투사 과정에서 카메라마다 고유의 특성으로 인하여 모두 다르기 때문이다.
+
+예를 들어 렌즈와 이미지 센서가 다를 뿐 아니라 카메라의 하드웨어 구조상 렌즈와 이미지 센서 사이의 거리가 다르고, 카메라 생산 과정에서 렌즈와 이미지 센서가 수평으로 조립되어야 하는데 미세하게 달라서 생기는 영상 중심점(image center)과 주점(principal point)의 어긋남, 이미지 센서의 기울기 등이 있다.
+
+이러한 부분들을 보정하기 위하여 카메라의 고유 파라미터를 찾는 것이 카메라 캘리브레이션(Calibration)이라고 한다(OpenCV 계열 영상처리 도서 참고).
+
+ROS에서는 OpenCV의 카메라 캘리브레이션을 이용한 [캘리브레이션 패키지](http://wiki.ros.org/camera_calibration)를 제공하고 있다. 
+
+#### 카메라 캘리브레이션 패키지 설치
+
+``` 
+sudo apt-get install ros-noetic-camera-calibration
+rosrun usb_cam usb_cam_node
+```
+
+```
+$ rostopic -echo /usb_cam/camera_info
+header: 
+  seq: 6186
+  stamp: 
+    secs: 1714629831
+    nsecs: 915747863
+  frame_id: "head_camera"
+height: 480
+width: 640
+distortion_model: ''
+D: []
+K: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+R: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+P: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+binning_x: 0
+binning_y: 0
+roi: 
+  x_offset: 0
+  y_offset: 0
+  height: 0
+  width: 0
+  do_rectify: False
+---
+```
+
+#### 체스보드 준비
+
+카메라 캘리브레이션은 체스보드를 기준으로 수행한다. 
+
+#### 캘리브레이션
+
+다음과 같이 캘리브레이션 노드를 실행하는데 --size는 앞에서 설명한 체스보드의 가로x세로 크기를 말하며, --square 0.024는 체스보드 네모 하나의 실제 크기를 말한다. 이 네모는 가로와 세로의 크기가 같은 정사각형인데 프린터마다 다를 수 있으니 실제로 출력한 다음 크기를 재서 --square 옵션 뒤에 입력하면 된다. 해당 예시에서는 24mm로 설정하였다.
+
+```
+rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.024 image:=/usb_cam/image_raw camera:=/usb_cam
+```
+
+캘리브레이션 노드가 실행되면 아래와 같이 GUI가 실행된다. 이때 카메라로 체스보드를 비추면 캘리브레이션이 바로 시작된다. GUI 화면 오른쪽에 X, Y, Size, Skew라고 표시된 bar가 보일것이다. 이는 올바른 캘리브레이션을 위한 캘리브레이션 조건으로 카메라를 기준으로 왼쪽/오른쪽/위/아래로 대상체인 체스보드를 움직이기, 카메라를 기준으로 앞/뒤로 움직이기, 체스보드를 비스듬히 기울이기 등을 해줘야 한다. 조건들이 채워질수록 X, Y, Size, Skew의 바는 점점 채워지며 녹색으로 바뀐다.
+
+![image-20240502152940467](/home/oem/ROS_Programming_robots_with_ROS/assets/image-20240502152940467.png)
+
+캘리브레이션을 수행할 수 있는 영상들이 다 찍히면 CALIBRATE 버튼이 활성화된다. 이 버튼을 클릭하면 실제 캘리브레이션의 계산이 수행되는데 대략 1~5분 정도가 걸린다. 이 계산이 끝나면 SAVE 버튼을 클릭하여 캘리브레이션 정보를 저장한다. 저장된 주소는 캘리브레이션을 실행한 터미널 창에 표시되는데 '/tmp/calibrationdata.tar.gz'와 같이 /tmp 디렉터리에 저장된다.
+
+#### 카메라 파라미터 파일 생성
+
+ROS에서 카메라 캘리브레이션 파라미터를 담은 카메라 파라미터 파일(camera.yaml)을 생성한다. 다음과 같이 calibrationdata.tar.gz 파일의 압축을 풀면 캘리브레이션에서 사용된 이미지 파일(*.png)들과 캘리브레이션 파라미터들이 저장된 ost.txt 파일을 확인할 수 있다.
+
+```
+cd /tmp
+tar -xvzf calibrationdata.tar.gz
+```
+
+다음과 같이 ost.txt 파일을 ost.ini 파일로 이름을 바꾸고, camera_calibration_parsers 패키지의 convert 노드를 이용하여 카메라 파라미터 파일(camera.yaml)을 생성하자. 생성한 후 다음과 같이 ~/.ros/camera_info/ 폴더에 저장하면 ROS에서 사용되는 카메라 관련 패키지들은 이 정보를 참조하게 된다.
+
+```
+mv ost.txt ost.ini
+rosrun camera_calibration_parsers convert ost.ini camera.yaml
+mkdir ~/.ros/camera_info
+mv camera.yaml ~/.ros/camera_info/
+```
+
+camera.yaml 파일을 열어보면 다음과 같이 설정되어 있는데 카메라 이름(camera_name)은 개인이 설정할 수 있다. 
+
+*~/.ros/camera_info/camera.yaml*
+
+```
+(추후에 추가할것)
+```
+
+camera.yaml에는 카메라 내부 행렬 camera_matrix, 왜곡 계수 distortion_coefficients와 스테레오 카메라를 위한 보정 행렬 rectification_matrix, 투영 행렬 projection matrix 등이 기록되어 있다. 각각의 의미는 "http://wiki.ros.org/image_pipeline/CameraInfo"에 자세히 설명되어 있다.
+
+다시 usb_cam_node를 실행하면 보정 파일에 대한 경고가 나타나지 않는다.
+
+```
+rosrun usb_cam usb_cam_node
+(보정파일 경고 메시지 출력이 없는것을 추가할것)
+```
+
+더불어 /usb_cam/camera_info 토픽을 확인해보면 아래와 같이 D, K, R, P 파라미터들이 채워졌음을 확인할 수 있다.
+
+```
+(추후에 추가할것)
+```
+
+## 8.4. 심도 카메라(Depth Camera)
+
+LDS(laser distance sensor)와 같은 범주에서 Depth sensor라고도 불리고, 컬러 영상과 함께 취득할 수 있는 경우에는 RGB-D camera, Kinect Camera 등 다양하게 불린다. 
+
+### 8.4.1. Depth Camera 종류
+
+대표적으로 ToF(Time of flight), 구조광(Structured Light), 스테레오(Stereo) 방식이 있다.
+
+#### ToF(Time of Flight)
+
+ToF 방식은 적외선을 방사하여 되돌아온 시간으로 거리를 측정한다.
+
+#### 구조광(Structured Light)
+
+일관적 방사 패턴 방식을 사용한다.
+
+#### 스테레오(Stereo)
+
+사람의 좌우 눈처럼 양안시차를 이용하여 거리를 구한다. 일정 간격을 두고 두 개의 이미지 센서를 장착하고 있고 이를 두 이미지 센서로 찍힌 두 장의 이미지 영상의 차이를 이용해 거릿값을 계산한다.
+
+최근에는 두 개의 적외선 이미지 센서와 적외선을 주사하는 프로젝터를 내장한 형태로 눈에 보이지 않는 적외선을 일정 패턴으로 주사하여 두 이미지 센서로 이를 받아 삼각 측량법을 통하여 거리를 구하는 방법이다. 위 일반적인 스테레오 카메라와 구분하기 위하여 전자를 패시브 스테레오 카메라, 후자를 액티브 스테레오 카메라라고도 부른다.
+
+### 8.4.2. Depth Camera 테스트
+
+(차후에 해당 내용 실습 및 추가할것)
+
+참고자료 : https://github.com/IntelRealSense/realsense-ros#installation-instructions
+
+### 8.4.3. Point Cloud Data의 시각화
+
+참고 자료 : http://wiki.ros.org/Sensors#A3D_Sensors_.28range_finders_.26_RGB_D_cameras.29
+
+Depth Camera의 3차원 거릿값은 대상체와의 거리를 한 점으로 표시하고 이들 점의 집합체가 구름과 같다고 하여 Point Cloud Data라 부른다. GUI 환경에서 Point Cloud Data를 확인하기 위해 RViz를 실행하고 다음 순서대로 디스플레이 옵션을 변경한다.
+
+1. [Global Options] → [Fixed Frame]을 'camera_depth_frame'으로 변경한다.
+2. RViz 왼쪽 아래에 Add 버튼을 클릭한 다음, [PointCloud2]를 선택하여 추가한다. 세부 설정으로 Topic으로 camera/depth/points를 설정하고 원하는 형태의 크기나 색상 등을 선택한다.
+3. 모든 설정을 마쳤다면 PCD 값을 확인할 수 있다. 색상 기준은 X축으로 지정하였으므로 X축에서 멀어질수록 보라색에 가깝게 나타난다.
+
+### 8.4.4. Point Cloud Data 관련 라이브러리
+
+#### Point Cloud Library
+
+Point Cloud를 사용하기 위한 API의 집합체로 [PCL(Point Cloud Library)](http://pointclouds.org/)이라는 필터링, 분할, 표면 재구성, 모델로부터의 피팅 및 특징 추출 등을 수행하는 라이브러리를 많이 사용하고 있다.
+
+## 8.5. 레이저 거리 센서(LDS)
+
+### 8.5.1. LDS 테스트
+
+#### hls_lfcd_lds_driver 패키지 설치
+
+```
+sudo apt-get install ros-noetic-hls-lfcd-lds-driver
+```
+
+#### LDS 연결 및 사용 권한 변경
+
+HLDS 사의 LDS는 USB 방식이므로 컴퓨터의 USB 포트에 삽입하면 연결된다. 연결이 되면 'ttyUSB*'로 인식되므로 다음처럼 사용 권한을 설정해준다.
+
+```
+ls -l /dev/ttyUSB*
+```
+
+```
+sudo chmod a+rw /dev/ttyUSB0
+```
+
+#### hlds_laser 런치 파일 실행
+
+hlds_laser 런치 파일을 위해 roscore가 구동된 상태에서 다음 명령어를 실행한다.
+
+```
+roslaunch hls_lfcd_lds_driver hlds_laser.launch
+```
+
+#### scan 데이터확인
+
+hlds_laser 노드를 실행하면 '/scan' 토픽으로 LDS 값이 전송된다. 다음과 같이 rostopic echo 명령어로 값을 확인한다.
+
+```
+rostopic echo /scan
+```
+
+스캔 정보에서 frame_id는 laser로 설정되어 있고, 측정 각은 6.28318548203 raidan (=360˚)임을 확인할 수 있다. 또한 각 증가 값은 1˚(0.0174532923847 rad = 1deg)이고, 측정 거리 최소 0.11미터에서 3.5미터라는 것, 각 측정 각도별 거릿값을 배열로 데이터가 퍼블리시되고 있다는 것을 확인할 수 있다.
+
+### 8.5.3. LDS 거릿값의 시각화
+
+```
+rviz
+```
+
+1. RViz 오른쪽 상단의 Views의 Type를 TopDownOtrho로 설정하여 2차원의 거리 정보를 쉽게 볼 수 있는 XY 평면뷰로 바꿔준다.
+2. RViz 왼쪽 상단의 [Global Options] → [Fixed Frame]을 'laser'로 변경한다.
+3. RViz 왼쪽 상단의 Add 버튼을 클릭한 후, 디스플레이 중에서 [Axes]를 선택해 추가한다. 
+4. RViz 왼쪽 아래 Add 버튼을 클릭한 후, 디스플레이 중에서 [LaserScan]을 선택하여 추가한다. 
+
+## 8.6. 모터 패키지
+
+ROS 위키에 신설된 [Motors 페이지](http://wiki.ros.org/Motor%20Controller%20Drivers)는 ROS에서 지원하고 있는 모터 및 서보 컨트롤러를 모두 모아둔 페이지이다.
+
+### 8.6.1. 다이나믹셀
+
+다이나믹셀 시리즈는 모터 간을 연결하여 서로 통신할 수 있는 데이지 체인(Daisy chain) 방식으로 연결하여 제어할 수 있기 때문에 로봇의 배선 정리에서 매우 간편하고, 감속기어, 제어기, 구동부, 통신부로 구성된 모듈로써 위치, 속도, 온도, 부하, 전압, 전류 등을 피드백 받을 수 있다. 또한 기본적인 위치 제어뿐만 아니라 로보틱스에서 많이 사용되는 속도 제어와 토크 제어도 가능하다.
+
+다이나믹셀은 다양한 환경을 지원하는 개발환경인 [DynamicxelSDK](http://wiki.ros.org/dynamixel_sdk)를 지원한다. 더불어 ROS 패키지로도 지원하고 있어서 다이나믹셀은 ROS에서도 쉽게 사용할 수 있다. 다이나믹셀을 지원하는 대표적인 패키지로는 dynamixel_motor와 arbotix 그리고 [dynamixel_workbench](http://wiki.ros.org/dynamixel_workbench)가 있다. 
+
+## 8.7. 공개 패키지 사용법
+
+http://www.ros.org/browse/list.php에 접속한 다음 위쪽 ROS 버전 중에 noetic을 클릭하면 ROS 최신 버전인 noetic의 패키지 목록이 나열된다.
+
+### 8.7.1. 패키지 검색
+
+http://wiki.ros.org/ 웹 페이지의 Search란에 키워드를 입력하면 사니트 내의 관련 검색어로 검색 결과를 보여준다. 예를 들어 "find object"를 입력한 후 Submit 버튼을 누르면 입력한 키워드에 맞는 다양한 패키지의 정보 또는 질문들을 확인할 수 있다.
+
+해당 패키지의 페이지에 들어간 후 패키지 의존성 패키지(오른쪽 Dependencies를 클릭하면 표시되는)를 확인할 수 있다.
+
+### 8.7.2. 의존성 패키지 설치
+
+find_object_2d 패키지의 [Wiki 페이지](http://wiki.ros.org/find_object_2d)에서 패키지 의존성(Dependencies)을 확인하면 이 패키지는 총 12 종류의 다른 패키지에 종속되어 있다는 것을 알 수 있다. rospack list 명령 또는 rospack find 명령으로 필요한 패키지가 설치되어 있는지 확인한다.
+
+* rospack list 명령으로 확인
+
+  ```
+  $ rospack list
+  actionlib /opt/ros/noetic/share/actionlib
+  actionlib_msgs /opt/ros/noetic/share/actionlib_msgs
+  actionlib_tutorials /opt/ros/noetic/share/actionlib_tutorials
+  angles /opt/ros/noetic/share/angles
+  
+  ...
+  
+  ```
+
+* rospack find 명령으로 확인(설치된 경우)
+
+  ```
+  $ rospack find cv_bridge
+  /opt/ros/noetic/share/cv_bridge
+  ```
+
+### 8.7.3. 패키지 설치
+
+* 바이너리 설치
+
+  ```
+  sudo apt-get install ros-noetic-find-object-2d
+  ```
+
+* 소스 설치
+
+  ```
+  cd ~/catkin_ws/src
+  git clone https://github.com/introlab/find-object.git
+  cd ~/catkin_ws/
+  catkin_make
+  ```
+
+### 8.7.4. 패키지 실행
+
+```
+roscore
+```
+
+```
+rosrun usb_cam usb_cam_node
+```
+
+```
+rosrun find_object_2d find_object_2d image:=/usb_cam/image_raw
+```
+
+rostopic echo 명령어로 /objects 토픽을 확인하거나 print_objects_detected 노드를 실행하여 검색된 대상의 정보를 확인할 수도 있다.
+
+```
+rostopic echo /objects
+```
+
+```
+rosrun find_object_2d print_objects_detected
+```
+
+# 9장. 임베디드 시스템
+
+임베디드 시스템(Embedded System, 내장형 시스템)은 기계나 기타 제어가 필요한 시스템에 대해, 제어를 위한 특정 기능을 수행하는 컴퓨터 시스템으로 장치 내에 존재하는 전자 시스템이다. 즉 임베디드 시스템은 전체 장치의 일부분으로 구성되며 제어가 필요한 시스템을 위한 두뇌 역할을 하는 특정 목적의 컴퓨터 시스템이다.
+
+로봇의 기능을 구현하기 위해서는 많은 임베디드 장치들이 사용된다. 특히 로봇의 액츄에이터나 센서를 사용하기 위해서 실시간 제어가 가능한 마이크로컨트롤러가 사용되고 카메라를 이용한 영상처리나 내비게이션 등에는 고성능의 프로세서를 사용한 컴퓨터가 필요하다.
+
+ROS의 경우 PC나 ARM 사의 Cortex-A 시리즈 급의 고성능 CPU에서 구동되며 리눅스와 같은 운영체제가 필요하다.
+
+리눅스 같은 운영체제는 실시간성을 보장하지 못하기 때문에 액추에이터나 센서들을 제어하기 위해서는 실시간 제어에 적합한 마이크로컨트롤러를 사용한다.
+
+터틀봇3 버거의 경우에도 액추에이터와 센서제어를 위해서는 Cortex-M7 계열의 마이크로컨트롤러를 사용하고 리눅스와 ROS 운영체제를 사용하는 Raspberry Pi 3 보드와는 USB로 연결하여 아래와 같이 역할을 나누어 시스템을 구성하였다.
+
+![img](https://velog.velcdn.com/images%2Fbbirong%2Fpost%2Fbe9f340c-8ad5-4c21-9243-d172d8626b61%2Fimage.png)
+
+## 9.2. rosserial
+
+[rosserial](http://wiki.ros.org/rosserial)은 ROS의 메시지, 토픽 그리고 서비스들을 시리얼 통신 기반으로 사용할 수 있도록 변환해주는 패키지이다. 일반적으로 마이크로컨트롤러는 ROS에서 기본 통신으로 사용하는 TCP/IP보다는 UART와 같은 시리얼 통신을 많이 사용한다. 따라서 마이크로컨트롤러와 ROS를 사용하는 컴퓨터간의 메시지 통신을 위해서는 rosserial과 같은 중계자 역할이 필요하다.
+
+![img](https://velog.velcdn.com/images%2Fbbirong%2Fpost%2F0ac54c28-03e3-40d4-8a7d-1669936cedcc%2Fimage.png)
+
+ROS가 구동되는 PC는 [rosserial server](http://wiki.ros.org/rosserial_server)이고 연결되는 마이크로컨트롤러가 [rosserial client](http://wiki.ros.org/rosserial_client)가 된다. server와 client는 rosserial protocol을 이용해 데이터를 송/수신하기 때문에 데이터를 송/수신할 수 있는 하드웨어는 모두 사용할 수 있다. 이를 통해서 마이크로컨트롤러에서 많이 사용하는 UART를 이용해서도 ROS 메시지를 사용할 수 있게 된다.
+
+예를 들어 마이크로컨트롤러에 연결된 센서값을 ADC로 디지털값화 시킨 후 시리얼로 전송하게되면, 컴퓨터의 rosserial_server 노드는 데이터 값을 받아서 ROS에서 사용하는 토픽(Topic)으로 변환하여 전송하게 된다. 반대로 ROS의 다른 노드에서 모터 제어 속도값을 토픽으로 전송하면 rosserial_server 노드는 이를 시리얼로 마이크로컨트롤러에게 전송하고 연결된 모터를 직접 제어하게 되는 것이다.
+
+rosserial은 SBC를 포함한 일반 컴퓨터의 경우, 제어에 있어서 실시간성이 보장 못되는데 이렇게 보조 하드웨어 제어기로 마이크로컨트롤러를 사용하면 실시간성을 확보할 수 있게 된다.
+
+### 9.2.1. rosserial server
+
+ROS가 구동되는 PC에서 [rosserial protocol](http://wiki.ros.org/rosserial/Overview/Protocol)을 통해서 임베디드 장치와 중계자 역할을 하는 노드이다. 구현된 프로그래밍 언어에 따라 현재까지 3가지 노드를 사용할 수 있다.
+
+#### rosserial_python
+
+python 언어로 구현되었고 일반적으로 rosserial을 사용하기 위해 많이 사용된다.
+
+#### rosserial_server
+
+C++ 언어를 사용하여 동작 성능이 상대적으로 향상되었으나 rosserial_python에 비해서는 기능상에 일부 제약이 있다. 
 
 
 
@@ -3113,6 +5128,47 @@ rqt
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# TODO
 
 
 
@@ -3120,33 +5176,38 @@ rqt
 
 * 패키지 인덱스
 * 오버레이
-* 인터렉티브 마커
+* 인터랙티브 마커
 
+# Error 목록
 
+### catkin_make 후 rosrun 시 package를 찾을 수 없는 경우
 
+* 참고 자료
+  * https://m.blog.naver.com/angelkim88/221632674154
+  * http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment
 
+catkin_make 후 devel 폴더의 setup.sh 파일을 쉘에 등록해서 해당 작업공간을 ROS 환경에 오버레이 시켜야 한다.
 
+setup.sh 파일을 등록하면 해당 작업공간이 ROS 환경의 최상위에 오버레이 된다.
 
+```
+$ source devel/setup.sh
+```
 
+이후 ROS_PACKAGE_PATH 환경 변수에 현재 있는 디렉터리가 포함되어 있는지 확인
 
+```
+$ echo $ROS_PACKAGE_PATH
+/home/oem/catkin_ws/src:/opt/ros/noetic/share
+```
 
+~/.bashrc에 다음 줄을 삽입하면 새 셸을 열때마다 실행하지 않아도 된다.
 
+```
+source /opt/ros/<distro>/setup.bash
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+이후 rosrun 실행
 
 # 참고 자료
 
