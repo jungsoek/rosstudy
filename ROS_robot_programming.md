@@ -5122,13 +5122,453 @@ python 언어로 구현되었고 일반적으로 rosserial을 사용하기 위�
 
 C++ 언어를 사용하여 동작 성능이 상대적으로 향상되었으나 rosserial_python에 비해서는 기능상에 일부 제약이 있다. 
 
+#### rosserial_java
 
+Java 언어 기반의 모듈이 필요할 때, 혹은 안드로이드 SDK와 함께 사용될 때 이용한다.
 
+### 9.2.2. rosserial client
 
+#### rosserial_arduino
 
+아두이노 보드에서 사용하기 위한 것으로 대표적으로 UNO와 Leonardo 보드를 지원하지만 소스 수정을 통해서 다른 보드에서도 사용 가능하다. 터틀봇3에서도 rosserial_arduino를 수정해서 사용하고 있다.
 
+#### rosserial_embeddedlinux
 
+임베디드 리눅스에서 사용 가능한 라이브러리이다.
 
+#### rosserial_windows
+
+윈도우 운영체제를 지원하고 윈도우의 응용프로그램과 통신을 지원한다.
+
+#### rosserial_mbed
+
+임베디드 개발환경인 mbed 플랫폼을 지원해 mbed 보드들을 사용할 수 있다.
+
+#### rosserial_tivac
+
+TI 사에서 제작한 Launchpad 보드에서 사용하기 위한 라이브러리이다.
+
+### 9.2.3. rosserial 프로토콜
+
+rosserial sever와 client는 시리얼 통신 기반의 패킷 형태로 데이터를 송/수신한다. rosserial protocol은 바이트 단위로 정의되어 있고 패킷의 동기화 및 데이터 검증을 위한 정보들이 포함되어 있다.
+
+#### 패킷 구성
+
+rosserial 패킷은 ROS의 표준 메시지 데이터를 송/수신하기 위한 추가적인 헤더부분과 각각의 데이터는 체크섬을 통해 데이터의 유효성을 검증한다.
+
+![img](https://velog.velcdn.com/images%2Fbbirong%2Fpost%2F6b5291bd-e6cf-407b-80a9-69dc2ad99345%2Fimage.png)
+
+#### 쿼리 패킷
+
+rosserial server가 시작되면 client로 토픽 이름과 토픽 타입 등의 정보를 요청한다. 이때 요청하는 것이 쿼리 패킷이다. 쿼리 패킷은 Topic ID가 0이고 데이터 사이즈는 0이다. 쿼리 패킷의 데이터는 다음과 같다.
+
+```
+0xff 0xfe 0x00 0x00 0xff 0x00 0x00 0xff
+```
+
+쿼리 패킷을 받은 client는 다음 내용을 포함한 메시지를 server로 전송하고 server는 이 정보를 바탕으로 메시지들을 송/수신한다.
+
+```
+uint16 topic_id
+string topic_name
+string message_type
+string md5sum
+int32 buffer_size
+```
+
+### 9.2.4. rosserial 제약사항
+
+#### 메모리 제약
+
+임베디드에 사용되는 마이크로컨트롤러는 사용할 수 있는 메모리가 제한되어 있고 일반 PC에 비해서는 상당히 작은 용량을 가지고 있다. 따라서 메모리 용량을 고려하여 사용하고자 하는 퍼블리셔, 서브스크라이버 개수 및 송/수신 버퍼의 크기를 미리 정의해야 한다. 송/수신 버퍼의 크기를 초과하는 메시지의 데이터는 송/수신할 수 없으므로 주의가 필요하다.
+
+#### Float64
+
+rosserial client로 rosserial_arduino를 사용할 경우에 아두이노 보드에 사용된 마이크로컨트롤러는 64비트 실수연산을 지원하지 않아 라이브러리를 생성할 때 자동으로 32비트형으로 변경한다. 만약 64비트 실수연산을 지원한다면 make_libraries.py에서 데이터 타입 변환 부분을 수정하면 된다.
+
+#### String
+
+마이크로컨트롤러의 메모리 제한으로 문자열 데이터를 String 메시지 안에 저장하지 않고 외부에서 정의한 문자열 데이터의 포인터값만 메시지에 저장한다. String 메시지를 사용하기 위해서는 다음과 같은 절차가 필요하다.
+
+```
+str_msgs::String str_msg;
+unsigned char hello[13] = "hello world!";
+str_msg.data = hello;
+```
+
+#### Arrays
+
+String과 마찬가지로 메모리 제약사항으로 배열 데이터에 대한 포인터를 사용해서 배열의 끝을 알 수가 없다. 따라서 배열의 크기에 대한 정보를 추가하고 메시지를 송/수신할 때 사용된다.
+
+#### 통신 속도
+
+UART 같은 경우 115200bps와 같은 속도로는 메시지 개수가 많아지면 응답 및 처리속도가 느려질 수 있다. 하지만 OpenCR에서는 USB를 이용한 가상의 시리얼 통신을 적용하여 고속통신이 가능하다.
+
+### 9.2.5. rosserial 설치
+
+#### 패키지 설치
+
+다음 명령어로 rosserial과 아두이노 계열 지원 패키지를 설치한다. 그 외에도 ros-noetic-rosserial-windows, ros-noetic-rosserial-xbee, ros-noetic-rosserial-embeddedlinux 등이 있다.
+
+```
+sudo apt-get install ros-noetic-rosserial ros-noetic-rosserial-server ros-noetic-rosserial-arduino
+```
+
+#### 라이브러리 생성
+
+아두이노용 rosserial 라이브러리를 생성한다.
+
+```
+cd ~/Arduino/libraries/
+rosrun rosserial_arduino make_libraries.py
+```
+
+#### 통신 포트 변경
+
+아두이노 ROS 라이브러리를 생성한 경우에 기본으로 설정된 통신 포트를 사용하도록 되어 있다. 일반적인 아두이노 보드인 경우 HardwareSerial 클래스의 Serial 객체를 사용하도록 되어 있기 때문에 통신 포트를 변경하기 위해서는 생성된 라이브러리 소스를 수정해야 한다. 라이브러리 폴더의 ros.h 파일 내용을 보면 ArduinoHardware 클래스를 사용하여 NodeHandle을 정의 한다. 따라서 사용할 포트의 하드웨어 기능을 ArduinoHardware 클래스에서 변경하면 된다.
+
+```c
+/*
+ * Software License Agreement (BSD License)
+ *
+ * Copyright (c) 2011, Willow Garage, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials provided
+ *    with the distribution.
+ *  * Neither the name of Willow Garage, Inc. nor the names of its
+ *    contributors may be used to endorse or promote prducts derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#ifndef _ROS_H_
+#define _ROS_H_
+
+#include "ros/node_handle.h"
+
+#if defined(ESP8266) or defined(ESP32) or defined(ROSSERIAL_ARDUINO_TCP)
+  #include "ArduinoTcpHardware.h"
+#else
+  #include "ArduinoHardware.h"
+#endif
+
+namespace ros
+{
+#if defined(__AVR_ATmega8__) or defined(__AVR_ATmega168__)
+  /* downsize our buffers */
+  typedef NodeHandle_<ArduinoHardware, 6, 6, 150, 150> NodeHandle;
+
+#elif defined(__AVR_ATmega328P__)
+
+  typedef NodeHandle_<ArduinoHardware, 25, 25, 280, 280> NodeHandle;
+
+#elif defined(SPARK)
+
+  typedef NodeHandle_<ArduinoHardware, 10, 10, 2048, 2048> NodeHandle;
+
+#else
+
+  typedef NodeHandle_<ArduinoHardware> NodeHandle; // default 25, 25, 512, 512
+
+#endif
+}
+
+#endif
+```
+
+OpenCR의 경우 ArduinoHardware.h 파일에서 SERIAL_CLASS는 USBSerial로 변경하여 USB로 통신할 수 있도록 하였다. 만약에 다른 포트로 변경한다면 시리얼 포트 클래스와 객체를 변경하면 된다.
+
+```c
+#define SERIAL_CLASS USBSerial
+(중략)
+class ArduinoHardware
+{
+    iostream = &Serial;
+(중략)
+}
+```
+
+### 9.2.6. rosserial 예제
+
+#### LED
+
+#### Button
+
+#### 입력 전압 측정
+
+#### IMU
+
+## 9.3. 터틀봇3 펌웨어
+
+### 9.3.1. 터틀봇3 버거 펌웨어
+
+### 9.3.2. 터틀봇3 와플과 와플 파이 펌웨어
+
+### 9.3.3. 터틀봇3 설정 펌웨어
+
+#### 설정 펌웨어 다운로드
+
+#### 다이나믹셀 설정 변경
+
+#### 다이나믹셀 테스트
+
+# 10장. 모바일 로봇
+
+## 10.1. ROS 지원 로봇
+
+## 10.2. 터틀봇 시리즈
+
+## 10.3. 터틀봇3 하드웨어
+
+## 10.4. 터틀봇3 소프트웨어
+
+## 10.5. 터틀봇3 개발환경
+
+터틀봇3의 기본 운영체제는 우분투 마테이고, ROS는 noetic 버전을 설치한다. 이후 PC, 터틀봇에 패키지 및 의존성 패키지를 설치한다.
+
+*의존성 패키지 설치[Remote PC]*
+
+```
+sudo apt-get install ros-noetic-joy ros-noetic-teleop-twist-joy ros-noetic-teleop-twist-keyboard ros-noetic-laser-proc ros-noetic-rgbd-launch ros-noetic-depthimage-to-laserscan ros-noetic-rosserial-arduino ros-noetic-rosserial-python ros-noetic-rosserial-server ros-noetic-rosserial-client ros-noetic-rosserial-msgs ros-noetic-amcl ros-noetic-map-server ros-noetic-move-base ros-noetic-urdf ros-noetic-xacro ros-noetic-compressed-image-transport ros-noetic-rqt-image-view ros-noetic-gmapping ros-noetic-navigation
+```
+
+*터틀봇3 패키지 설치[Remote PC]*
+
+```
+cd ~/catkin_ws/src/
+git clone https://github.com/ROBOTIS-GIT/turtlebot3.git
+git clone https://github.com/ROBOTIS-GIT/turtlebot3_msgs.git
+git clone https://github.com/ROBOTIS-GIT/turtlebot3_simulations.git
+cd ~/catkin_ws && catkin_make
+```
+
+*의존성 패키지 설치[Turtlebot PC]*
+
+```
+sudo apt-get install ros-noetic-joy ros-noetic-teleop-twist-joy ros-noetic-teleop-twist-keyboard ros-noetic-laser-proc ros-noetic-rgbd-launch ros-noetic-depthimage-to-laserscan ros-noetic-rosserial-arduino ros-noetic-rosserial-python ros-noetic-rosserial-server ros-noetic-rosserial-client ros-noetic-rosserial-msgs ros-noetic-amcl ros-noetic-map-server ros-noetic-move-base ros-noetic-urdf ros-noetic-xacro ros-noetic-compressed-image-transport ros-noetic-rqt-image-view ros-noetic-gmapping ros-noetic-navigation
+```
+
+*터틀봇3 패키지 설치*
+
+```
+cd ~/catkin_ws/src/
+git clone https://github.com/ROBOTIS-GIT/turtlebot3.git
+git clone https://github.com/ROBOTIS-GIT/turtlebot3_msgs.git
+git clone https://github.com/ROBOTIS-GIT/hls_lfcd_lds_driver.git
+cd ~/catkin_ws && catkin_make
+```
+
+소프트웨어 설치를 마쳤다면 다음 중요한 것은 네트워크를 설정하는 것이다. ROS_HOSTNAME 및 ROS_MASTER_URI의 설정값을 변경한다(3.2절, 8.3절 참고). 참고로 터틀봇3는 사용자의 개인 데스크톱 및 노트북을 Remote PC라 칭하며 roscore를 구동하는 마스터 역할을 하게되며 원격 제어, SLAM, Navigation 등 상위 제어를 맡게 된다. 이와 쌍을 이루는 터틀봇3 로봇 본체에는 SBC가 탑재되어 있어서 로봇 구동 및 센서 수집을 맡게 된다. 참고로 다음의 원격 제어 설정 예시는 ROS Master를 Remote PC에서 구동했을 때의 예제이다.
+
+#### Remote PC의 IP 값 확인
+
+ifconfig
+
+#### Remote PC의 ROS_HOSTNAME 및 ROS_MASTER_URI 설정
+
+~/.bashrc 파일의 ROS_HOSTNAME 및 ROS_MASTER_URI 설정값을 다음과 같이 수정한다.
+
+```
+export ROS_HOSTNAME=[Remote PC의 IP]
+export ROS_MASTER_URI=http://${ROS_HOSTNAME}:11311
+```
+
+#### TurtleBot의 IP 값 확인
+
+ifconfig
+
+#### TurtleBot3의 SBC의 ROS_HOSTNAME 및 ROS_MASTER_URI 설정
+
+~/.bashrc 파일의 ROS_HOSTNAME 및 ROS_MASTER_URI 설정값을 다음과 같이 수정한다.
+
+```
+export ROS_HOSTNAME=[TurtleBot3의 SBC의 IP]
+export ROS_MASTER_URI=http://${ROS_HOSTNAME}:11311
+```
+
+## 10.6. 터틀봇3 원격 제어
+
+http://turtlebot3.robotis.com/ 링크의 teleoperation 항목 참고
+
+### 10.6.1. 터틀봇3 조종하기
+
+#### roscore 구동 [Remote PC]
+
+```
+roscore
+```
+
+#### turtlebot3_robot.launch 런치 파일 실행 [TurtleBot]
+
+TurtleBot에서 다음과 같이 turtlebot3_robot.launch 파일을 실행한다. 이 런치 파일에는 터틀봇3의 제어기로 이용 중인 OpenCR과의 통신을 담당하는 turtlebot3_core와 360도 거리 센서인 LDS를 구동하는 hls_lfcd_lds_driver 노드를 동작하게 되어 있다.
+
+```
+roslaunch turtlebot3_bringup turtlebot3_robot.launch --screen
+```
+
+> ※ cf) : --screen 옵션
+>
+> roslaunch는 여러 개의 노드가 동시에 실행되는데 기본 설정으로는 각각의 노드에서 출력되는 메시지가 표시되지 않는다. 필요한 경우 --screen 옵션을 붙이면 구동 시에 발생하는 일부 숨겨진 메세지들까지 모두 확인할 수 있다. 
+
+#### turtlebot3_teleop_key.launch 런치 파일 실행 [Remote PC]
+
+Remote PC에서 다음과 같이 turtlebot3_teleop_key.launch 런치 파일을 실행한다.
+
+```
+$ roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch --screen
+... logging to /home/oem/.ros/log/e42fb81a-0b77-11ef-a5e8-038cff5f1446/roslaunch-user-23806.log
+Checking log directory for disk usage. This may take a while.
+Press Ctrl-C to interrupt
+Done checking log file disk usage. Usage is <1GB.
+
+started roslaunch server http://192.168.0.15:46095/
+
+SUMMARY
+========
+
+PARAMETERS
+ * /model: waffle_pi
+ * /rosdistro: noetic
+ * /rosversion: 1.16.0
+
+NODES
+  /
+    turtlebot3_teleop_keyboard (turtlebot3_teleop/turtlebot3_teleop_key)
+
+ROS_MASTER_URI=http://192.168.0.15:11311
+
+process[turtlebot3_teleop_keyboard-1]: started with pid [23827]
+
+Control Your TurtleBot3!
+---------------------------
+Moving around:
+        w
+   a    s    d
+        x
+
+w/x : increase/decrease linear velocity (Burger : ~ 0.22, Waffle and Waffle Pi : ~ 0.26)
+a/d : increase/decrease angular velocity (Burger : ~ 2.84, Waffle and Waffle Pi : ~ 1.82)
+
+space key, s : force stop
+
+CTRL-C to quit
+```
+
+### 10.6.2. 터틀봇3 시각화
+
+[터틀봇3 시뮬레이션](https://roomedia.tistory.com/entry/11%EC%9D%BC%EC%B0%A8-Turtlebot3-%EC%8B%9C%EB%AE%AC%EB%A0%88%EC%9D%B4%EC%85%98)
+
+RViz를 통하여 로봇을 시각화한다.
+
+```
+$ export TURTLEBOT3_MODEL=burger
+$ roslaunch turtlebot3_fake turtlebot3_fake.launch
+$ roslaunch turtlebot3_bringup turtlebot3_model.launch
+```
+
+## 10.7. 터틀봇3 토픽
+
+Remote PC에서 roscore만 구동하고 그 이외에 아무런 노드도 실행하지 않은 상태에서 rostopic list 명령어로 토픽 목록을 살펴보면 /rosout, /rosout_agg 밖에 나오지 않는다. 여기에 위의 터틀봇 원격 제어에서 했던 것처럼 TurtleBot3 SBC의 터미널 창에서 turtlebot3_robot.launch 런치 파일을 실행하여 터틀봇3를 구동하면 turtlebot3_core 노드와 turtlebot3_lds 노드가 실행되고 각 노드에서 퍼블리시하는 조인트 상태, 모터 구동부, IMU 등의 내용을 토픽으로 받아볼 수 있다.
+
+```
+roslaunch turtlebot3_bringup turtlebot3_robot.launch --screen
+```
+
+예를 들어 다음과 같이 rostopic list 명령어를 이용하여 다양한 토픽들이 퍼블리시 또는 서브스크라이브되고 있다는 것을 확인할 수 있다.
+
+```
+$ rostopic list
+/clock
+/diagnostics
+/firmware_version
+/imu
+/rosout
+/rosout_agg
+/scan
+/sensor_state
+/version_info
+```
+
+여기에 추가로 터틀봇 원격 제어에서 했던 것처럼 Remote PC에서 다음과 같이 turtlebot3_teleop_key.launch 런치 파일을 실행한다.
+
+```
+$ roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch --screen
+```
+
+```
+rqt_graph
+```
+
+### 10.7.1. 서브스크라이브 토픽
+
+앞에서 언급한 토픽은 터틀봇3이 수신하는 서브스크라이브 토픽과 직접 송신하는 퍼블리시 토픽으로 나눌 수 있다. 그중 서브스크라이브 토픽은 다음과 같다. 모든 서브스크라이브 토픽을 알아둘 필요는 없지만, 몇 가지는 테스트를 통해 사용하는 방법을 알아본다. 다른 것은 제외하더라도 'cmd_vel'은 꼭 알아두자. 이는 로봇을 제어하는 실질적인 토픽으로 사용자는 로봇의 전진과 후진, 좌우 회전 등을 이 토픽을 통해 제어할 수 있다.
+
+| 이름        | 형태                  | 기능                                                         |
+| ----------- | --------------------- | ------------------------------------------------------------ |
+| motor_power | std_msgs/Bool         | 다이나믹셀 모터 On/Off                                       |
+| reset       | std_msgs/Empty        | 리셋 (odometry 및 IMU)                                       |
+| sound       | turtlebot3_msgs/Sound | 비프음 소리 출력                                             |
+| cmd_vel     | geometry_msgs/Twist   | 모바일 로봇의 병진 및 회전속도 제어, 단위는 m/s, rad/s 이용(실질적인 로봇 구동 제어) |
+
+### 10.7.2. 서브스크라이브 토픽으로 로봇 제어
+
+앞에서 언급한 수신 토픽은 사용자가 퍼블리시한 토픽을 로봇이 받아서 처리하게 되어 있다. 이 중 몇 가지 서브스크라이브 토픽만 사용해본다. 다음 예제는 터미널 창에서 rostopic pub 명령어로 모터를 정지시키는 명령어이다.
+
+```
+$ rostopic pub /motor_power std_msgs/Bool "data:0"
+```
+
+다음은 터틀봇을 직접 움직이기 위해 속도를 제어해본다. 여기서 사용되는 x, y는 병진속도 단위는 ROS 표준인 m/s이다. 그리고 z는 회전속도로 단위는 rad/s이다. 다음 예제처럼 x값은 0.02으로 주었을 때 터틀봇은 x축 방향으로 0.02m/s 속도로 전진한다.
+
+```
+rostopic pub /cmd_vel geometry_msgs/Twist '[1.0,0.0,3.0]' '[0.0,2.0,2.1]'
+```
+
+### 10.7.3. 퍼블리시 토픽
+
+터틀봇3가 퍼블리시하는 토픽은 크게 상태진단(diagnostics) 관련 토픽, 디버그 관련 토픽, 센서 관련 토픽으로 나눌 수 있다. 그 이외에 조인트(joint_states) 관련 토픽, 제어기 정보(controller_info) 관련 토픽, 오도메트리(odom) 및 변환(tf) 관련 토픽 등이 있다.
+
+| 이름          | 형태                            | 기능                                                         |
+| ------------- | ------------------------------- | ------------------------------------------------------------ |
+| sensor_state  | turtlebot3_msgs/SensorState     | 터틀봇3에 실장된 센서들의 값을 확인할 수 있는 토픽이다.      |
+| battery_state | sensor_msgs/BatteryState        | 배터리의 전압 등의 상태 값을 얻을 수 있다.                   |
+| scan          | sensor_msgs/LaserScan           | 터틀봇3에 탑재된 LDS로부터의 스캔값을 확인할 수 있는 토픽이다. |
+| imu           | sensor_msgs/imu                 | 가속도 센서와 자이로 센서값을 기반으로 로봇의 방향값을 포함하는 토픽이다. |
+| odom          | nav_msgs/Odometry               | 엔코더와 IMU 정보를 기반으로 터틀봇3의 오도메트리 정보를 얻을 수 있다. |
+| tf            | tf2_msgs/TFMessage              | 터틀봇3의 base_footpoint, odom와 같은 좌표 변환값을 가진다.  |
+| joint_states  | sensor_msgs/JointState          | 좌/우측 바퀴를 조인트로 여겼을 때의 위치, 속도, 힘 등을 확인 가능하다. 각 단위는 위치 : m, 속도 : m/s, 힘 : N·m이다. |
+| diagnostics   | diagnostic_msgs/DiagnosticArray | 자기 진단 정보를 얻을 수 있다.                               |
+| version_info  | turtlebot3_msgs/VersionInfo     | 터틀봇3의 하드웨어, 펌웨어, 소프트웨어 등의 정보를 얻을 수 있다. |
+| cmd_vel_rc100 | geometry_msgs/Twist             | 블루투스 기반의 조종기인 RC100을 이용했을 경우에 사용되는 토픽으로 모바일 로봇의 속도 제어에 사용되고 서브스크라이브하게 된다. 단위는 m/s, rad/s 이용한다. |
+
+각각의 센서 데이터를 토픽 메시지의 자료형에 맞추면 된다.
+
+### 10.7.4. 퍼블리시 토픽으로 로봇 상태 파악
+
+앞에서 언급한 퍼블리시 토픽은 로봇의 센서값, 모터 상태, 로봇의 위치 등을 토픽 형태로 전송한다.
+
+sensor_state 토픽은 임베디드 보드 OpenCR에 연결된 아날로그 센서들을 주로 다루는데 다음 예제와 같이 bumper, cliff, button, left_encoder, right_encoder 등의 정보를 얻을 수 있다.
 
 
 
@@ -5170,7 +5610,7 @@ C++ 언어를 사용하여 동작 성능이 상대적으로 향상되었으나 r
 
 # TODO
 
-
+일단 대충이라도 적어놓을것
 
 # 모르는 것, 찾아볼것
 
