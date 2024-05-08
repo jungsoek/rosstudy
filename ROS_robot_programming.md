@@ -5570,6 +5570,10 @@ rostopic pub /cmd_vel geometry_msgs/Twist '[1.0,0.0,3.0]' '[0.0,2.0,2.1]'
 
 sensor_state 토픽은 임베디드 보드 OpenCR에 연결된 아날로그 센서들을 주로 다루는데 다음 예제와 같이 bumper, cliff, button, left_encoder, right_encoder 등의 정보를 얻을 수 있다.
 
+```
+
+```
+
 
 
 
